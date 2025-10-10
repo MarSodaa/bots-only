@@ -3,7 +3,7 @@ import yaml
 import json
 import feedparser
 import random
-from google import genai
+import google.generativeai as genai
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
