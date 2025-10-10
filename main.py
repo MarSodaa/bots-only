@@ -4,6 +4,8 @@ import json
 import feedparser
 import random
 import google.generativeai as genai
+from datetime import datetime
+
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
@@ -25,9 +27,12 @@ except FileNotFoundError:
 except yaml.YAMLError as e:
     print(f"Error parsing YAML file: {e}")
     personas = []
-client = genai.Client(api_key=GEMINI_API_KEY)
+
 if personas:
     print(f"Found {len(personas)} personas")
+
+genai.configure(api_key=GEMINI_API_KEY)
+client = genai.GenerativeModel(MODEL_CHOICE)
 
 # Keep that API bill down
 def context_budgeter(text, max_length, keep_length):
@@ -67,8 +72,7 @@ def general_chat():
                 print(chat)
         else:
             chat_log.append("USER: " + chat_input)
-            response = client.models.generate_content(
-                model=MODEL_CHOICE,
+            response = client.generate_content(
                 contents=context_budgeter("\n".join(chat_log), CONTEXT_WINDOW, CONTEXT_WINDOW),
             )
             chat_log.append("Assistant: " + response.text)
@@ -111,8 +115,7 @@ def generate_reddit_comments(headline):
 
     print("--- Sending Prompt to AI ---")
 
-    response = client.models.generate_content(
-        model=MODEL_CHOICE,
+    response = client.generate_content(
         contents=context_budgeter(reddit_prompt, CONTEXT_WINDOW, CONTEXT_WINDOW),
     )
 
@@ -178,7 +181,7 @@ def format_comment(comment, depth=0):
     return html
 
 
-def generate_html_file(headline_obj, comments_data):
+def generate_html_file(headline_obj, comments_data, generation_time):
     """Generates a complete index.html file from the data."""
     headline_title = headline_obj['title']
     headline_link = headline_obj['link']
@@ -187,8 +190,6 @@ def generate_html_file(headline_obj, comments_data):
     if comments_data:
         for comment in comments_data:
             comments_html += format_comment(comment)
-
-    print("HELLOO!")
 
     html_template = f"""
     <!DOCTYPE html>
@@ -200,9 +201,10 @@ def generate_html_file(headline_obj, comments_data):
         <style>
             body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1a1a1b; color: #d7dadc; margin: 0; padding: 20px; }}
             .container {{ max-width: 800px; margin: auto; background-color: #1a1a1b; border-radius: 8px; padding: 20px; }}
-            .headline h1 {{ font-size: 1.5em; }}
+            .headline h1 {{ font-size: 1.5em; margin-bottom: 5px; }}
             .headline a {{ color: #4f9eed; text-decoration: none; }}
             .headline a:hover {{ text-decoration: underline; }}
+            .timestamp p {{ font-size: 0.8em; color: #818384; margin-top: 0; text-align: left; }}
             .comment {{ border-left: 2px solid #343536; margin-top: 15px; padding-left: 15px; }}
             .comment-header {{ color: #818384; font-size: 0.8em; margin-bottom: 5px; }}
             .author {{ font-weight: bold; color: #a6cbe7; }}
@@ -214,6 +216,9 @@ def generate_html_file(headline_obj, comments_data):
         <div class="container">
             <div class="headline">
                 <h1><a href="{headline_link}" target="_blank">{headline_title}</a></h1>
+            </div>
+            <div class="timestamp">
+                <p>Posted on: {generation_time}</p>
             </div>
             <hr style="border-color: #343536;">
             <div class="comments-section">
@@ -230,8 +235,9 @@ def generate_html_file(headline_obj, comments_data):
 
 
 if __name__ == "__main__":
+    update_time_utc = datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
     headline = get_headline(random.choice(RSS_FEEDS))
     if headline:
         comment_section = generate_reddit_comments(headline[0]["title"])
         if comment_section:
-            generate_html_file(headline[0], comment_section)
+            generate_html_file(headline[0], comment_section, update_time_utc)
