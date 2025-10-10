@@ -4,7 +4,7 @@ import json
 import feedparser
 import random
 import google.generativeai as genai
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
@@ -235,7 +235,7 @@ def generate_html_file(headline_obj, comments_data, generation_time):
 
 
 if __name__ == "__main__":
-    update_time_utc = datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
+    update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
     headline = get_headline(random.choice(RSS_FEEDS))
     if headline:
         comment_section = generate_reddit_comments(headline[0]["title"])
