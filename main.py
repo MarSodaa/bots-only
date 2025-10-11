@@ -5,17 +5,34 @@ import feedparser
 import random
 import google.generativeai as genai
 from datetime import datetime, timezone
-
+from bs4 import BeautifulSoup
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY environment variable not set!")
 MODEL_CHOICE = "gemini-2.5-flash-lite"
 CONTEXT_WINDOW = 10000
+MAX_USERS = 10
+TEST_HEADLINE = None
+FORCED_ENGAGEMENT = []
+HISTORY_FILE = "post_history.json"
+MAX_POSTS_TO_DISPLAY = 10
 
 RSS_FEEDS = [
-    "https://www.reddit.com/r/animenews/.rss"
+    "https://www.reddit.com/r/animenews/.rss",
+    "https://www.reddit.com/r/casualconversation/.rss",
+    "https://www.reddit.com/r/unpopularopinion/.rss",
+    "https://www.reddit.com/r/Showerthoughts/.rss",
+    "https://www.reddit.com/r/changemyview/.rss",
+    "https://www.reddit.com/r/gamernews/.rss",
+    "https://www.reddit.com/r/trueaskreddit/.rss",
+    "https://www.reddit.com/r/games/.rss",
+    "https://www.reddit.com/r/glitch_in_the_matrix/.rss",
+    "https://www.reddit.com/r/askreddit/.rss"
 ]
+
+# Forced Feed
+#RSS_FEEDS = ["https://www.reddit.com/r/changemyview/.rss"]
 
 # load personas
 try:
@@ -27,9 +44,30 @@ except FileNotFoundError:
 except yaml.YAMLError as e:
     print(f"Error parsing YAML file: {e}")
     personas = []
-
 if personas:
     print(f"Found {len(personas)} personas")
+
+# Chooses personas
+if len(personas) > MAX_USERS:
+    print(f"Total personas available: {len(personas)}. Choosing {MAX_USERS}.")
+    forced_personas = [p for p in personas if p['character'] in FORCED_ENGAGEMENT]
+    if forced_personas:
+        print(f"Forced engagement detected for: {[p['character'] for p in forced_personas]}")
+    available_for_random = [p for p in personas if p not in forced_personas]
+    num_to_choose = MAX_USERS - len(forced_personas)
+    if num_to_choose < 0:
+        print(
+            f"Warning: More forced users ({len(forced_personas)}) than MAX_USERS ({MAX_USERS}). Selecting only the forced users.")
+        personas = forced_personas[:MAX_USERS]
+        num_to_choose = 0  # No more to choose
+    else:
+        randomly_selected = random.sample(available_for_random, num_to_choose)
+        personas = forced_personas + randomly_selected
+
+random.shuffle(personas)
+print("\n--- Final Participants ---")
+for person in personas:
+    print(f"Adding {person['character']}")
 
 genai.configure(api_key=GEMINI_API_KEY)
 client = genai.GenerativeModel(MODEL_CHOICE)
@@ -90,13 +128,32 @@ def get_headline(feed_url):
         print("No entries found in the RSS feed.")
         return None
 
-    headlines = feed.entries[:3]
+    for entry in feed.entries:
+        if entry.author != '/u/AutoModerator':
+            print(f"Found valid headline: \"{entry.title}\" by {entry.author}")
 
-    # print(headlines)
+            post_body = ""
+            if hasattr(entry, 'content'):
+                html_content = entry.content[0].value
+                soup = BeautifulSoup(html_content, 'html.parser')
+                post_body = soup.get_text(separator='\n', strip=True)
+                print("--- Extracted body text ---")
 
-    return headlines
+            return {
+                "title": entry.title,
+                "link": entry.link,
+                "body": post_body
+            }
 
-def generate_reddit_comments(headline):
+    print("Could not find a post not made by AutoModerator in the recent entries.")
+    return None
+
+def generate_reddit_comments(post_title, post_body):
+    post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
+    if post_body:
+        post_content_prompt += f"Here is the body of the post:\n---\n{post_body}\n---\n\n"
+    else:
+        post_content_prompt += "\n"
     reddit_prompt = (
         f"You are an API that generates a simulated Reddit comment section for a given headline. "
         f"Your task is to use the provided personas to create a series of comments and replies in a nested structure. "
@@ -108,57 +165,49 @@ def generate_reddit_comments(headline):
         f" - 'comment': (string) The text of the comment.\n"
         f" - 'upvotes': (integer) A randomly generated number of upvotes based on how popular the comment would be in real life, e.g., between -10 and 200.\n"
         f" - 'replies': (list) A list of other comment objects that are replies to this one. This list can be empty.\n\n"
+        f"You must not simulate the comments or replies of the original post. Only use the provided personas."
         f"Here are your personas: {personas}\n"
-        f"Here is the headline: \"{headline}\"\n\n"
+        f"Here is the content: {post_content_prompt}\n"
         f"Generate the JSON output now."
     )
 
     print("--- Sending Prompt to AI ---")
+    print(reddit_prompt)
 
     response = client.generate_content(
         contents=context_budgeter(reddit_prompt, CONTEXT_WINDOW, CONTEXT_WINDOW),
+        generation_config={"response_mime_type": "application/json"}
     )
 
-    raw_text = response.text
-    # print("\n--- AI Raw Response ---")
-    # print(raw_text)
-
-    cleaned_text = raw_text.strip().lstrip('```json').rstrip('```').strip()
-
     try:
-        reddit_data = json.loads(cleaned_text)
-
-        #print("\n--- Successfully Parsed JSON Data ---")
-
-        print(json.dumps(reddit_data, indent=2))
-
-        # Or you can access specific parts of it
-        # print("\n--- Example: Accessing Data ---")
-        # first_comment = reddit_data[0]
-        # author = first_comment['author']
-        # comment_text = first_comment['comment']
-        # print(f"The author of the first comment is: {author}")
-        # print(f"Their comment was: '{comment_text}'")
-
-        #if first_comment['replies']:
-        #    first_reply = first_comment['replies'][0]
-        #    print(f"The first reply was from {first_reply['author']}")
-
+        reddit_data = json.loads(response.text)
+        print("--- Successfully Parsed JSON Data ---")
         return reddit_data
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"\n--- Error: Failed to parse JSON from the AI's response: {e} ---")
+        print("Raw AI response was:")
+        print(response.text)
+        return None
 
-    except json.JSONDecodeError:
-        print("\n--- Error: Failed to parse JSON from the AI's response. ---")
-        print("This usually happens if the AI includes extra text or malformed JSON.")
+def update_post_history(new_post):
+    try:
+        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+            history = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        history = []
 
+    history.insert(0, new_post)
+
+    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump(history, f, indent=2)
+    print(f"--- Post history updated. Total posts: {len(history)} ---")
+    return history
 
 def format_comment(comment, depth=0):
-    """Recursively formats a comment and its replies into HTML."""
-    author = comment.get('author', 'Unknown')
-    comment_text = comment.get('comment', '').replace('\n', '<br>')
-    upvotes = comment.get('upvotes', 0)
+    author = comment.get('author', 'Anonymous')
+    comment_text = comment.get('comment', '[Message has been deleted by moderator]').replace('\n', '<br>')
+    upvotes = comment.get('upvotes', 1)
     replies = comment.get('replies', [])
-
-    # Indent replies
     margin_left = f"margin-left: {depth * 20}px;"
 
     html = f"""
@@ -173,23 +222,45 @@ def format_comment(comment, depth=0):
         <div class="replies">
     """
 
-    # Recursively add replies
     for reply in replies:
         html += format_comment(reply, depth + 1)
-
     html += "</div></div>"
+
     return html
 
 
-def generate_html_file(headline_obj, comments_data, generation_time):
-    """Generates a complete index.html file from the data."""
-    headline_title = headline_obj['title']
-    headline_link = headline_obj['link']
+def format_single_post_html(post_data):
+    headline_title = post_data['headline']['title']
+    headline_link = post_data['headline']['link']
+    generation_time = post_data['timestamp']
+    comments_data = post_data['comments']
 
     comments_html = ""
     if comments_data:
         for comment in comments_data:
             comments_html += format_comment(comment)
+
+    return f"""
+    <div class="post-container">
+        <div class="headline">
+            <h2><a href="{headline_link}" target="_blank">{headline_title}</a></h2>
+        </div>
+        <div class="timestamp">
+            <p>Posted on: {generation_time}</p>
+        </div>
+        <hr class="post-divider">
+        <div class="comments-section">
+            {comments_html}
+        </div>
+    </div>
+    """
+
+
+def generate_feed_html(posts):
+
+    all_posts_html = ""
+    for post in posts:
+        all_posts_html += format_single_post_html(post)
 
     html_template = f"""
     <!DOCTYPE html>
@@ -199,12 +270,15 @@ def generate_html_file(headline_obj, comments_data, generation_time):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AI Social Feed</title>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1a1a1b; color: #d7dadc; margin: 0; padding: 20px; }}
-            .container {{ max-width: 800px; margin: auto; background-color: #1a1a1b; border-radius: 8px; padding: 20px; }}
-            .headline h1 {{ font-size: 1.5em; margin-bottom: 5px; }}
-            .headline a {{ color: #4f9eed; text-decoration: none; }}
-            .headline a:hover {{ text-decoration: underline; }}
-            .timestamp p {{ font-size: 0.8em; color: #818384; margin-top: 0; text-align: left; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #030303; color: #d7dadc; margin: 0; padding: 20px; }}
+            .main-container {{ max-width: 800px; margin: auto; }}
+            .page-header {{ text-align: center; color: #fff; border-bottom: 2px solid #343536; padding-bottom: 10px; margin-bottom: 40px; }}
+            .post-container {{ background-color: #1a1a1b; border: 1px solid #343536; border-radius: 8px; padding: 20px; margin-bottom: 30px; }}
+            .headline h2 {{ font-size: 1.5em; margin-bottom: 5px; }}
+            .headline a {{ color: #d7dadc; text-decoration: none; }}
+            .headline a:hover {{ text-decoration: underline; color: #4f9eed; }}
+            .timestamp p {{ font-size: 0.8em; color: #818384; margin-top: 0; }}
+            .post-divider {{ border-color: #343536; }}
             .comment {{ border-left: 2px solid #343536; margin-top: 15px; padding-left: 15px; }}
             .comment-header {{ color: #818384; font-size: 0.8em; margin-bottom: 5px; }}
             .author {{ font-weight: bold; color: #a6cbe7; }}
@@ -213,31 +287,49 @@ def generate_html_file(headline_obj, comments_data, generation_time):
         </style>
     </head>
     <body>
-        <div class="container">
-            <div class="headline">
-                <h1><a href="{headline_link}" target="_blank">{headline_title}</a></h1>
+        <div class="main-container">
+            <div class="page-header">
+                <h1>Clankernet</h1>
+                <p>Displaying the {len(posts)} most recent posts.</p>
             </div>
-            <div class="timestamp">
-                <p>Posted on: {generation_time}</p>
-            </div>
-            <hr style="border-color: #343536;">
-            <div class="comments-section">
-                {comments_html}
-            </div>
+            {all_posts_html}
         </div>
     </body>
     </html>
     """
-
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_template)
     print("--- index.html file generated successfully! ---")
 
 
 if __name__ == "__main__":
+    print("\n--- Starting New Post Generation ---")
     update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
-    headline = get_headline(random.choice(RSS_FEEDS))
-    if headline:
-        comment_section = generate_reddit_comments(headline[0]["title"])
+
+    if TEST_HEADLINE:
+        # For testing, we can manually create a body
+        post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': 'This is the test body for the post.'}
+        print(f"Using test headline: \"{TEST_HEADLINE}\"")
+    else:
+        post_data = get_headline(random.choice(RSS_FEEDS))
+
+    if post_data:
+        comment_section = generate_reddit_comments(post_data["title"], post_data["body"])
         if comment_section:
-            generate_html_file(headline[0], comment_section, update_time_utc)
+            new_post_data = {
+                "timestamp": update_time_utc,
+                "headline": {
+                    "title": post_data['title'],
+                    "link": post_data['link']
+                },
+                "comments": comment_section
+            }
+
+            full_history = update_post_history(new_post_data)
+            posts_to_render = full_history[:MAX_POSTS_TO_DISPLAY]
+            generate_feed_html(posts_to_render)
+        else:
+            print("\n--- Skipped HTML generation due to failure in comment generation. ---")
+    else:
+        print("\n--- Skipped all generation due to failure in fetching a headline. ---")
+

@@ -1,3 +1,4 @@
 google-generativeai
 PyYAML
 feedparser
+beautifulsoup4
