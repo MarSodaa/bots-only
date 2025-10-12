@@ -76,6 +76,8 @@ def load_personas():
     for person in personas:
         print(f"Adding {person['character']}")
 
+return personas
+
 genai.configure(api_key=GEMINI_API_KEY)
 client = genai.GenerativeModel(MODEL_CHOICE)
 
@@ -321,7 +323,7 @@ def generate_feed_html(posts):
 if __name__ == "__main__":
     completed_posts = 0
     while completed_posts < NUMBER_OF_NEW_POSTS:
-        load_personas()
+        personas = load_personas()
         print("\n--- Starting New Post Generation ---")
         update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
     
@@ -353,6 +355,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
