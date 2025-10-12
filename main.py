@@ -76,7 +76,7 @@ def load_personas():
     for person in personas:
         print(f"Adding {person['character']}")
 
-return personas
+    return personas
 
 genai.configure(api_key=GEMINI_API_KEY)
 client = genai.GenerativeModel(MODEL_CHOICE)
@@ -355,6 +355,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
