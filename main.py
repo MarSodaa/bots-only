@@ -18,6 +18,7 @@ FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 10
 FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
+NUMBER_OF_NEW_POSTS = 2
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
@@ -125,7 +126,6 @@ def get_headline(feed_url):
     print(f"Fetching {feed_url}")
     feed = feedparser.parse(feed_url)
 
-    # Error handling for the feed
     if feed.bozo:
         print(f"Error parsing feed: {feed.bozo_exception}")
         return None
@@ -133,6 +133,7 @@ def get_headline(feed_url):
         print("No entries found in the RSS feed.")
         return None
 
+    entry_list = []
     for entry in feed.entries:
         if entry.author not in FILTERED_USERS:
             print(f"Found valid headline: \"{entry.title}\" by {entry.author}")
@@ -144,14 +145,17 @@ def get_headline(feed_url):
                 post_body = soup.get_text(separator='\n', strip=True)
                 print("--- Extracted body text ---")
 
-            return {
+            entry_list.append({
                 "title": entry.title,
                 "link": entry.link,
                 "body": post_body
-            }
-
-    print("Could not find a post not made by AutoModerator in the recent entries.")
-    return None
+            })
+    if len(entry_selection > 0):
+        entry_selection = random.choice(entry_list[0:4]
+        return entry_selection
+    else:
+        print("Could not find a post not made by AutoModerator in the recent entries.")
+        return None
 
 def generate_reddit_comments(post_title, post_body):
     post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
@@ -308,35 +312,40 @@ def generate_feed_html(posts):
 
 
 if __name__ == "__main__":
-    print("\n--- Starting New Post Generation ---")
-    update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
-
-    if TEST_HEADLINE:
-        # For testing, we can manually create a body
-        post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': 'This is the test body for the post.'}
-        print(f"Using test headline: \"{TEST_HEADLINE}\"")
-    else:
-        post_data = get_headline(random.choice(RSS_FEEDS))
-
-    if post_data:
-        comment_section = generate_reddit_comments(post_data["title"], post_data["body"])
-        if comment_section:
-            new_post_data = {
-                "timestamp": update_time_utc,
-                "headline": {
-                    "title": post_data['title'],
-                    "link": post_data['link']
-                },
-                "comments": comment_section
-            }
-
-            full_history = update_post_history(new_post_data)
-            posts_to_render = full_history[:MAX_POSTS_TO_DISPLAY]
-            generate_feed_html(posts_to_render)
+    completed_posts = 0
+    while completed_posts < NUMBER_OF_NEW_POSTS:
+        print("\n--- Starting New Post Generation ---")
+        update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+    
+        if TEST_HEADLINE:
+            # For testing, we can manually create a body
+            post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': 'This is the test body for the post.'}
+            print(f"Using test headline: \"{TEST_HEADLINE}\"")
         else:
-            print("\n--- Skipped HTML generation due to failure in comment generation. ---")
-    else:
-        print("\n--- Skipped all generation due to failure in fetching a headline. ---")
+            post_data = get_headline(random.choice(RSS_FEEDS))
+    
+        if post_data:
+            comment_section = generate_reddit_comments(post_data["title"], post_data["body"])
+            if comment_section:
+                new_post_data = {
+                    "timestamp": update_time_utc,
+                    "headline": {
+                        "title": post_data['title'],
+                        "link": post_data['link']
+                    },
+                    "comments": comment_section
+                }
+    
+                full_history = update_post_history(new_post_data)
+                posts_to_render = full_history[:MAX_POSTS_TO_DISPLAY]
+                generate_feed_html(posts_to_render)
+            else:
+                print("\n--- Skipped HTML generation due to failure in comment generation. ---")
+        else:
+            print("\n--- Skipped all generation due to failure in fetching a headline. ---")
+
+        completed_posts += 1
+
 
 
 
