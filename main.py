@@ -17,7 +17,7 @@ TEST_HEADLINE = None
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 10
-FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156"]
+FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
@@ -29,6 +29,10 @@ RSS_FEEDS = [
     "https://www.reddit.com/r/trueaskreddit/.rss",
     "https://www.reddit.com/r/games/.rss",
     "https://www.reddit.com/r/glitch_in_the_matrix/.rss",
+    "https://www.reddit.com/r/advice/.rss",
+    "https://www.reddit.com/r/amitheasshole/.rss",
+    "https://www.reddit.com/r/relationships/.rss",
+    "https://www.reddit.com/r/relationship_advice/.rss",
     "https://www.reddit.com/r/askreddit/.rss"
 ]
 
@@ -333,5 +337,6 @@ if __name__ == "__main__":
             print("\n--- Skipped HTML generation due to failure in comment generation. ---")
     else:
         print("\n--- Skipped all generation due to failure in fetching a headline. ---")
+
 
 
