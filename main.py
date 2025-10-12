@@ -131,6 +131,8 @@ def get_headline(feed_url):
 
     for entry in feed.entries:
         # Skip if the author is in the filtered list
+        if not entry.author:
+            continue
         if entry.author in FILTERED_USERS:
             continue
 
