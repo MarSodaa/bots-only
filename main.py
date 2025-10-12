@@ -134,6 +134,7 @@ def get_headline(feed_url):
         return None
 
     entry_list = []
+    i = 0
     for entry in feed.entries:
         if entry.author not in FILTERED_USERS:
             print(f"Found valid headline: \"{entry.title}\" by {entry.author}")
@@ -150,8 +151,13 @@ def get_headline(feed_url):
                 "link": entry.link,
                 "body": post_body
             })
+            
+            i+=1
+            if i >= 5:
+                break
+                
     if len(entry_selection > 0):
-        entry_selection = random.choice(entry_list[0:4])
+        entry_selection = random.choice(entry_list)
         return entry_selection
     else:
         print("Could not find a post not made by AutoModerator in the recent entries.")
@@ -345,6 +351,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
