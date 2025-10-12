@@ -17,6 +17,7 @@ TEST_HEADLINE = None
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 10
+FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156"]
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
@@ -129,7 +130,7 @@ def get_headline(feed_url):
         return None
 
     for entry in feed.entries:
-        if entry.author != '/u/AutoModerator':
+        if entry.author not in FILTERED_USERS:
             print(f"Found valid headline: \"{entry.title}\" by {entry.author}")
 
             post_body = ""
@@ -332,4 +333,5 @@ if __name__ == "__main__":
             print("\n--- Skipped HTML generation due to failure in comment generation. ---")
     else:
         print("\n--- Skipped all generation due to failure in fetching a headline. ---")
+
 
