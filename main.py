@@ -13,12 +13,12 @@ if not GEMINI_API_KEY:
 MODEL_CHOICE = "gemini-2.5-flash-lite"
 CONTEXT_WINDOW = 10000
 MAX_USERS = 10
-TEST_HEADLINE = None
+TEST_HEADLINE = "Oh sweet heavens! I'm such a clumsy fool! I met my personal idol, but I keep accidentally calling him racial slurs! He now thinks I'm racist! HELP!"
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 10
 FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
-NUMBER_OF_NEW_POSTS = 2
+NUMBER_OF_NEW_POSTS = 1
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     
         if TEST_HEADLINE:
             # For testing, we can manually create a body
-            post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': 'This is the test body for the post.'}
+            post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': '#'}
             print(f"Using test headline: \"{TEST_HEADLINE}\"")
         else:
             post_data = get_headline(random.choice(RSS_FEEDS))
@@ -355,6 +355,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
