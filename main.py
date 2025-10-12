@@ -41,7 +41,7 @@ RSS_FEEDS = [
 #RSS_FEEDS = ["https://www.reddit.com/r/changemyview/.rss"]
 
 # load personas
-def load_personas()
+def load_personas():
     try:
         with open("personas.yml", 'r', encoding='utf-8') as ymlfile:
             personas = yaml.safe_load(ymlfile)
@@ -353,6 +353,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
