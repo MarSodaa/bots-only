@@ -156,7 +156,7 @@ def get_headline(feed_url):
             if i >= 5:
                 break
                 
-    if len(entry_selection > 0):
+    if len(entry_list > 0):
         entry_selection = random.choice(entry_list)
         return entry_selection
     else:
@@ -351,6 +351,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
