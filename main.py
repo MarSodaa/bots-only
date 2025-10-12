@@ -4,8 +4,10 @@ import json
 import feedparser
 import random
 import google.generativeai as genai
+from google.generativeai import types
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
+import time
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
@@ -17,7 +19,9 @@ TEST_HEADLINE = None
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 15
-FILTERED_USERS = ["/u/AutoModerator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
+FILTERED_USERS = ["/u/AutoModerator", # Filters out sticky posts by these users
+                  "/u/rGamesModBot",
+                  "/u/AITAMod"]
 NUMBER_OF_NEW_POSTS = 3
 
 RSS_FEEDS = [
@@ -37,8 +41,9 @@ RSS_FEEDS = [
     "https://www.reddit.com/r/askreddit/.rss"
 ]
 
+
 # Forced Feed
-#RSS_FEEDS = ["https://www.reddit.com/r/changemyview/.rss"]
+# RSS_FEEDS = ["https://www.reddit.com/r/changemyview/.rss"]
 
 # load personas
 def load_personas():
@@ -53,7 +58,7 @@ def load_personas():
         personas = []
     if personas:
         print(f"Found {len(personas)} personas")
-    
+
     # Chooses personas
     if len(personas) > MAX_USERS:
         print(f"Total personas available: {len(personas)}. Choosing {MAX_USERS}.")
@@ -70,7 +75,7 @@ def load_personas():
         else:
             randomly_selected = random.sample(available_for_random, num_to_choose)
             personas = forced_personas + randomly_selected
-    
+
     random.shuffle(personas)
     print("\n--- Final Participants ---")
     for person in personas:
@@ -78,8 +83,10 @@ def load_personas():
 
     return personas
 
+
 genai.configure(api_key=GEMINI_API_KEY)
 client = genai.GenerativeModel(MODEL_CHOICE)
+
 
 # Keep that API bill down
 def context_budgeter(text, max_length, keep_length):
@@ -90,40 +97,19 @@ def context_budgeter(text, max_length, keep_length):
     else:
         return text
 
-def general_chat():
-    print("Here are the available chatters: ")
-    chatter_list = []
-    for chatter in personas:
-        print(chatter["character"])
-        chatter_list.append(chatter["character"].lower())
-    chatter_choice = input("Which chatter would you like to use? ")
-    if chatter_choice.lower() in chatter_list:
-        selected_persona = personas[chatter_list.index(chatter_choice.lower())]
-        print(f"Here is your chatter: {selected_persona['character']}")
-        opening_prompt = ""
-        for persona_key in selected_persona:
-            opening_prompt = opening_prompt + f"Your {persona_key} is {selected_persona[persona_key]}. "
-        print(opening_prompt)
-        chat_log = [opening_prompt]
-    else:
-        print("No such chatter. Using default chatter.")
-        chat_log = ["You are an AI assistant."]
-    print(f"Type \"history\" to see the history of the current session.")
-    print(f"Type \"exit\" to exit the session.")
-    while True:
-        chat_input = input(f"\nUser: ")
-        if chat_input.lower() == "exit":
-            break
-        if chat_input.lower() == "history":
-            for chat in chat_log:
-                print(chat)
-        else:
-            chat_log.append("USER: " + chat_input)
-            response = client.generate_content(
-                contents=context_budgeter("\n".join(chat_log), CONTEXT_WINDOW, CONTEXT_WINDOW),
-            )
-            chat_log.append("Assistant: " + response.text)
-            print("AI: " + response.text, f"\n")
+
+def get_historical_links():
+    try:
+        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+            history = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        history = []
+
+    historical_links = set()
+    for post in history:
+        if 'headline' in post and 'link' in post['headline']:
+            historical_links.add(post['headline']['link'])
+    return historical_links
 
 def get_headline(feed_url):
     print(f"Fetching {feed_url}")
@@ -136,35 +122,46 @@ def get_headline(feed_url):
         print("No entries found in the RSS feed.")
         return None
 
-    entry_list = []
-    i = 0
+    historical_links = get_historical_links()
+
+    # Counter for non-filtered entries checked against history
+    checked_post_attempts = 0
+    # Limit to checking up to 5 non-filtered entries from the feed
+    max_checked_post_attempts = 5
+
     for entry in feed.entries:
-        if entry.author not in FILTERED_USERS:
-            print(f"Found valid headline: \"{entry.title}\" by {entry.author}")
+        # Skip if the author is in the filtered list
+        if entry.author in FILTERED_USERS:
+            continue
 
-            post_body = ""
-            if hasattr(entry, 'content'):
-                html_content = entry.content[0].value
-                soup = BeautifulSoup(html_content, 'html.parser')
-                post_body = soup.get_text(separator='\n', strip=True)
-                print("--- Extracted body text ---")
+        checked_post_attempts += 1
 
-            entry_list.append({
-                "title": entry.title,
-                "link": entry.link,
-                "body": post_body
-            })
-            
-            i+=1
-            if i >= 5:
-                break
-                
-    if len(entry_list) > 0:
-        entry_selection = random.choice(entry_list)
-        return entry_selection
-    else:
-        print("Could not find a post not made by AutoModerator in the recent entries.")
-        return None
+        if checked_post_attempts > max_checked_post_attempts:
+            print(f"Exceeded {max_checked_post_attempts} attempts to find a new headline among non-filtered posts.")
+            break
+
+        if entry.link in historical_links:
+            print(f"Skipping previously posted headline: \"{entry.title}\" by {entry.author}")
+            continue
+
+        print(f"Found valid and new headline: \"{entry.title}\" by {entry.author}")
+
+        post_body = ""
+        if hasattr(entry, 'content'):
+            html_content = entry.content[0].value
+            soup = BeautifulSoup(html_content, 'html.parser')
+            post_body = soup.get_text(separator='\n', strip=True)
+
+        return {
+            "title": entry.title,
+            "link": entry.link,
+            "body": post_body
+        }
+
+    print(
+        "Could not find a new post (not by a filtered user and not previously posted) in the recent entries after several attempts.")
+    return None
+
 
 def generate_reddit_comments(post_title, post_body):
     post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
@@ -186,6 +183,8 @@ def generate_reddit_comments(post_title, post_body):
         f"You must not simulate the comments or replies of the original post. Only use the provided personas."
         f"Here are your personas: {personas}\n"
         f"Here is the content: {post_content_prompt}\n"
+        f"Some comments will be short single phrase quips, while others will be long drawn out rants or discussion spanning multiple paragraphs."
+        f"All of the characters will reply to the post as if they already experience with its respective online community, and are fully familiar with the topic."
         f"Generate the JSON output now."
     )
 
@@ -194,8 +193,9 @@ def generate_reddit_comments(post_title, post_body):
 
     response = client.generate_content(
         contents=context_budgeter(reddit_prompt, CONTEXT_WINDOW, CONTEXT_WINDOW),
-        generation_config={"response_mime_type": "application/json"}
-    )
+        generation_config=types.GenerationConfig(
+            max_output_tokens=5000,
+            response_mime_type="application/json"))
 
     try:
         reddit_data = json.loads(response.text)
@@ -206,6 +206,7 @@ def generate_reddit_comments(post_title, post_body):
         print("Raw AI response was:")
         print(response.text)
         return None
+
 
 def update_post_history(new_post):
     try:
@@ -220,6 +221,7 @@ def update_post_history(new_post):
         json.dump(history, f, indent=2)
     print(f"--- Post history updated. Total posts: {len(history)} ---")
     return history
+
 
 def format_comment(comment, depth=0):
     author = comment.get('author', 'Anonymous')
@@ -275,7 +277,6 @@ def format_single_post_html(post_data):
 
 
 def generate_feed_html(posts):
-
     all_posts_html = ""
     for post in posts:
         all_posts_html += format_single_post_html(post)
@@ -326,14 +327,14 @@ if __name__ == "__main__":
         personas = load_personas()
         print("\n--- Starting New Post Generation ---")
         update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
-    
+
         if TEST_HEADLINE:
             # For testing, we can manually create a body
             post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': '#'}
             print(f"Using test headline: \"{TEST_HEADLINE}\"")
         else:
             post_data = get_headline(random.choice(RSS_FEEDS))
-    
+
         if post_data:
             comment_section = generate_reddit_comments(post_data["title"], post_data["body"])
             if comment_section:
@@ -345,7 +346,7 @@ if __name__ == "__main__":
                     },
                     "comments": comment_section
                 }
-    
+
                 full_history = update_post_history(new_post_data)
                 posts_to_render = full_history[:MAX_POSTS_TO_DISPLAY]
                 generate_feed_html(posts_to_render)
@@ -355,7 +356,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
-
+        time.sleep(2)
 
 
 
