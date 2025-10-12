@@ -13,12 +13,12 @@ if not GEMINI_API_KEY:
 MODEL_CHOICE = "gemini-2.5-flash-lite"
 CONTEXT_WINDOW = 10000
 MAX_USERS = 10
-TEST_HEADLINE = "Oh sweet heavens! I'm such a clumsy fool! I met my personal idol, but I keep accidentally calling him racial slurs! He now thinks I'm racist! HELP!"
+TEST_HEADLINE = None
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
-MAX_POSTS_TO_DISPLAY = 10
+MAX_POSTS_TO_DISPLAY = 15
 FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
-NUMBER_OF_NEW_POSTS = 1
+NUMBER_OF_NEW_POSTS = 3
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
@@ -355,6 +355,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
