@@ -151,7 +151,7 @@ def get_headline(feed_url):
                 "body": post_body
             })
     if len(entry_selection > 0):
-        entry_selection = random.choice(entry_list[0:4]
+        entry_selection = random.choice(entry_list[0:4])
         return entry_selection
     else:
         print("Could not find a post not made by AutoModerator in the recent entries.")
@@ -345,6 +345,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
