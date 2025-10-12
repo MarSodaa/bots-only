@@ -41,39 +41,40 @@ RSS_FEEDS = [
 #RSS_FEEDS = ["https://www.reddit.com/r/changemyview/.rss"]
 
 # load personas
-try:
-    with open("personas.yml", 'r', encoding='utf-8') as ymlfile:
-        personas = yaml.safe_load(ymlfile)
-except FileNotFoundError:
-    print("No personas.yml found")
-    personas = []
-except yaml.YAMLError as e:
-    print(f"Error parsing YAML file: {e}")
-    personas = []
-if personas:
-    print(f"Found {len(personas)} personas")
-
-# Chooses personas
-if len(personas) > MAX_USERS:
-    print(f"Total personas available: {len(personas)}. Choosing {MAX_USERS}.")
-    forced_personas = [p for p in personas if p['character'] in FORCED_ENGAGEMENT]
-    if forced_personas:
-        print(f"Forced engagement detected for: {[p['character'] for p in forced_personas]}")
-    available_for_random = [p for p in personas if p not in forced_personas]
-    num_to_choose = MAX_USERS - len(forced_personas)
-    if num_to_choose < 0:
-        print(
-            f"Warning: More forced users ({len(forced_personas)}) than MAX_USERS ({MAX_USERS}). Selecting only the forced users.")
-        personas = forced_personas[:MAX_USERS]
-        num_to_choose = 0  # No more to choose
-    else:
-        randomly_selected = random.sample(available_for_random, num_to_choose)
-        personas = forced_personas + randomly_selected
-
-random.shuffle(personas)
-print("\n--- Final Participants ---")
-for person in personas:
-    print(f"Adding {person['character']}")
+def load_personas()
+    try:
+        with open("personas.yml", 'r', encoding='utf-8') as ymlfile:
+            personas = yaml.safe_load(ymlfile)
+    except FileNotFoundError:
+        print("No personas.yml found")
+        personas = []
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML file: {e}")
+        personas = []
+    if personas:
+        print(f"Found {len(personas)} personas")
+    
+    # Chooses personas
+    if len(personas) > MAX_USERS:
+        print(f"Total personas available: {len(personas)}. Choosing {MAX_USERS}.")
+        forced_personas = [p for p in personas if p['character'] in FORCED_ENGAGEMENT]
+        if forced_personas:
+            print(f"Forced engagement detected for: {[p['character'] for p in forced_personas]}")
+        available_for_random = [p for p in personas if p not in forced_personas]
+        num_to_choose = MAX_USERS - len(forced_personas)
+        if num_to_choose < 0:
+            print(
+                f"Warning: More forced users ({len(forced_personas)}) than MAX_USERS ({MAX_USERS}). Selecting only the forced users.")
+            personas = forced_personas[:MAX_USERS]
+            num_to_choose = 0  # No more to choose
+        else:
+            randomly_selected = random.sample(available_for_random, num_to_choose)
+            personas = forced_personas + randomly_selected
+    
+    random.shuffle(personas)
+    print("\n--- Final Participants ---")
+    for person in personas:
+        print(f"Adding {person['character']}")
 
 genai.configure(api_key=GEMINI_API_KEY)
 client = genai.GenerativeModel(MODEL_CHOICE)
@@ -320,6 +321,7 @@ def generate_feed_html(posts):
 if __name__ == "__main__":
     completed_posts = 0
     while completed_posts < NUMBER_OF_NEW_POSTS:
+        load_personas()
         print("\n--- Starting New Post Generation ---")
         update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
     
@@ -351,6 +353,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
