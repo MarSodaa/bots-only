@@ -17,7 +17,7 @@ TEST_HEADLINE = None
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 15
-FILTERED_USERS = ["/u/Automoderator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
+FILTERED_USERS = ["/u/AutoModerator", "/u/MajorParadox", "/u/kodiak931156", "/u/AthiestComic"]
 NUMBER_OF_NEW_POSTS = 3
 
 RSS_FEEDS = [
@@ -355,6 +355,7 @@ if __name__ == "__main__":
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
+
 
 
 
