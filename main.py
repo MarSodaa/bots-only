@@ -287,7 +287,7 @@ def generate_feed_html(posts):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI Social Feed</title>
+        <title>Clankernet</title>
         <style>
             body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #030303; color: #d7dadc; margin: 0; padding: 20px; }}
             .main-container {{ max-width: 800px; margin: auto; }}
