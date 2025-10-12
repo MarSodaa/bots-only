@@ -8,6 +8,9 @@ from google.generativeai import types
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 import time
+import requests
+from PIL import Image
+import io
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
@@ -26,6 +29,9 @@ NUMBER_OF_NEW_POSTS = 3
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
+    "https://www.reddit.com/r/animemes/.rss",
+    "https://www.reddit.com/r/animememes/.rss",
+    "https://www.reddit.com/r/anime_irl/.rss",
     "https://www.reddit.com/r/casualconversation/.rss",
     "https://www.reddit.com/r/unpopularopinion/.rss",
     "https://www.reddit.com/r/Showerthoughts/.rss",
@@ -33,6 +39,7 @@ RSS_FEEDS = [
     "https://www.reddit.com/r/gamernews/.rss",
     "https://www.reddit.com/r/trueaskreddit/.rss",
     "https://www.reddit.com/r/games/.rss",
+    "https://www.reddit.com/r/gaming/.rss",
     "https://www.reddit.com/r/glitch_in_the_matrix/.rss",
     "https://www.reddit.com/r/advice/.rss",
     "https://www.reddit.com/r/amitheasshole/.rss",
@@ -43,7 +50,7 @@ RSS_FEEDS = [
 
 
 # Forced Feed
-# RSS_FEEDS = ["https://www.reddit.com/r/changemyview/.rss"]
+#RSS_FEEDS = ["https://www.reddit.com/r/anime_irl/.rss"]
 
 # load personas
 def load_personas():
@@ -124,13 +131,10 @@ def get_headline(feed_url):
 
     historical_links = get_historical_links()
 
-    # Counter for non-filtered entries checked against history
     checked_post_attempts = 0
-    # Limit to checking up to 5 non-filtered entries from the feed
-    max_checked_post_attempts = 5
+    max_checked_post_attempts = 10
 
     for entry in feed.entries:
-        # Skip if the author is in the filtered list
         if not entry.author:
             continue
         if entry.author in FILTERED_USERS:
@@ -149,15 +153,38 @@ def get_headline(feed_url):
         print(f"Found valid and new headline: \"{entry.title}\" by {entry.author}")
 
         post_body = ""
+        image_object = None
+
+
         if hasattr(entry, 'content'):
             html_content = entry.content[0].value
             soup = BeautifulSoup(html_content, 'html.parser')
             post_body = soup.get_text(separator='\n', strip=True)
+            image_link_tag = soup.find('a', string='[link]')
+            if image_link_tag and image_link_tag['href']:
+                image_url = image_link_tag['href']
+                if any(ext in image_url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                    print(f"Found image URL: {image_url}")
+                    try:
+                        response = requests.get(image_url, timeout=10)
+                        response.raise_for_status()
+
+                        img = Image.open(io.BytesIO(response.content))
+                        img.thumbnail((768, 768))
+
+                        image_object = img
+                        print("Successfully downloaded and resized image.")
+
+                    except requests.exceptions.RequestException as e:
+                        print(f"Could not download image: {e}")
+                    except Exception as e:
+                        print(f"Could not process image: {e}")
 
         return {
             "title": entry.title,
             "link": entry.link,
-            "body": post_body
+            "body": post_body,
+            "image_object": image_object
         }
 
     print(
@@ -165,38 +192,55 @@ def get_headline(feed_url):
     return None
 
 
-def generate_reddit_comments(post_title, post_body):
+def generate_reddit_comments(post_title, post_body, image_object=None):
     post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
     if post_body:
-        post_content_prompt += f"Here is the body of the post:\n---\n{post_body}\n---\n\n"
+        post_content_prompt += f"Here is the body of the post:\n---\n{context_budgeter(post_body, CONTEXT_WINDOW, CONTEXT_WINDOW)}\n---\n\n"
     else:
         post_content_prompt += "\n"
+
+    api_contents = []
+
+    if image_object:
+        print("Image object found, adding to prompt.")
+        # The SDK handles the PIL Image object automatically. No Part needed.
+        api_contents.append(image_object)
+        post_content_prompt = "The user has provided an image along with the post title. Analyze the image first, then the text. Your comments MUST reflect that you have seen and understood the image. " + post_content_prompt
+
     reddit_prompt = (
         f"You are an API that generates a simulated Reddit comment section for a given headline. "
-        f"Your task is to use the provided personas to create a series of comments and replies in a nested structure. "
-        f"The diction and prose should be reflective of modern brain rotted youth."
-        f"The final output must be a single, valid JSON object and nothing else. Do not include any explanatory text before or after the JSON. "
-        f"The JSON object should be a list of top-level comment objects. "
-        f"Each comment object must have the following keys:\n"
-        f" - 'author': (string) The name of the persona posting the comment.\n"
-        f" - 'comment': (string) The text of the comment.\n"
-        f" - 'upvotes': (integer) A randomly generated number of upvotes based on how popular the comment would be in real life, e.g., between -10 and 200.\n"
-        f" - 'replies': (list) A list of other comment objects that are replies to this one. This list can be empty.\n\n"
-        f"You must not simulate the comments or replies of the original post. Only use the provided personas."
-        f"Here are your personas: {personas}\n"
-        f"Here is the content: {post_content_prompt}\n"
-        f"Some comments will be short single phrase quips, while others will be long drawn out rants or discussion spanning multiple paragraphs."
-        f"All of the characters will reply to the post as if they already experience with its respective online community, and are fully familiar with the topic."
-        f"Generate the JSON output now."
+        f"Your final output must be a single, valid JSON object and nothing else. Do not include any explanatory text before or after the JSON. "
+        f"The JSON object should be a list of top-level comment objects, each with 'author', 'comment', 'upvotes', and 'replies' keys.\n\n"
+        f"Here are your personas: {personas}\n\n"
+        f"{post_content_prompt}"
+        f"### CRITICAL INSTRUCTION & EXAMPLES ###\n"
+        f"The MOST IMPORTANT RULE is that each character MUST demonstrate deep, specific knowledge of the topic in the headline. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. They are not just random people on the internet; they are part of that specific community.\n"
+        f"- They MUST mention specific characters, plot points, historical context, previous installments (e.g., Season 1 vs Season 2), community memes, or well-known controversies related to the topic.\n"
+        f"- The persona's traits should COLOR their expert commentary, not REPLACE it.\n\n"
+        f"For example, if the headline is 'One Punch Man Season 3: 6.5 Years Wait for Same Recycled Animation':\n"
+        f"**GOOD EXAMPLE (Demonstrates Knowledge):**\n"
+        f"\"author\": \"Prodigy_von_Ordelia\", \"comment\": \"Six and a half years for this? After the absolute disaster that was J.C. Staff's handling of Season 2, particularly the metal shine on Genos and the slideshow-level Garou fight, I expected a complete overhaul. To hear it's 'recycled animation' suggests they learned nothing. Unacceptable. The Monster Association arc deserves cinematic quality, not this lazy cash-grab.\"\n"
+        f"*(This is good because it mentions the specific animation studio for S2, specific character animation issues, a specific character, and a major story arc.)*\n\n"
+        f"**BAD EXAMPLE (Generic, Lacks Knowledge):**\n"
+        f"\"author\": \"Prodigy_von_Ordelia\", \"comment\": \"A 6.5-year delay is an unacceptable level of inefficiency. Studios need to be held to a higher standard. This is a fundamental mismanagement of resources.\"\n"
+        f"*(This is bad because it could be about any animated show. It contains no specific details about One Punch Man.)*\n"
+        f"### END OF CRITICAL INSTRUCTIONS ###\n\n"
+        f"Now, generate a full, nested comment section for the provided headline. Remember:\n"
+        f"- The diction should be reflective of modern brain rotted online communities.\n"
+        f"- Comment length should vary from short single phrase quips to multi-paragraph rants.\n"
+        f"- Do not simulate replies from the original post author.\n"
+        f"- Ensure the final output is only the JSON object."
     )
+
+    api_contents.insert(0, reddit_prompt)
 
     print("--- Sending Prompt to AI ---")
     print(reddit_prompt)
 
     response = client.generate_content(
-        contents=context_budgeter(reddit_prompt, CONTEXT_WINDOW, CONTEXT_WINDOW),
+        contents=api_contents,
         generation_config=types.GenerationConfig(
-            max_output_tokens=5000,
+            max_output_tokens=3000,
             response_mime_type="application/json"))
 
     try:
@@ -331,14 +375,17 @@ if __name__ == "__main__":
         update_time_utc = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
 
         if TEST_HEADLINE:
-            # For testing, we can manually create a body
-            post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': '#'}
+            post_data = {'title': TEST_HEADLINE, 'link': '#', 'body': '#', 'image_object': None}
             print(f"Using test headline: \"{TEST_HEADLINE}\"")
         else:
             post_data = get_headline(random.choice(RSS_FEEDS))
 
         if post_data:
-            comment_section = generate_reddit_comments(post_data["title"], post_data["body"])
+            comment_section = generate_reddit_comments(
+                post_data["title"],
+                post_data["body"],
+                post_data.get("image_object")
+            )
             if comment_section:
                 new_post_data = {
                     "timestamp": update_time_utc,
