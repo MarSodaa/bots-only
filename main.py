@@ -52,6 +52,7 @@ RSS_FEEDS = [
 # Forced Feed
 #RSS_FEEDS = ["https://www.reddit.com/r/anime_irl/.rss"]
 
+
 # load personas
 def load_personas():
     try:
@@ -118,6 +119,7 @@ def get_historical_links():
             historical_links.add(post['headline']['link'])
     return historical_links
 
+
 def get_headline(feed_url):
     print(f"Fetching {feed_url}")
     feed = feedparser.parse(feed_url)
@@ -135,7 +137,7 @@ def get_headline(feed_url):
     max_checked_post_attempts = 10
 
     for entry in feed.entries:
-        if not entry.author:
+        if not hasattr(entry, 'author'):
             continue
         if entry.author in FILTERED_USERS:
             continue
@@ -191,6 +193,56 @@ def get_headline(feed_url):
         "Could not find a new post (not by a filtered user and not previously posted) in the recent entries after several attempts.")
     return None
 
+# In case the llm abruptly ends mid-comment (Thanks, Schnitzel)
+def repair_and_parse_json(text: str):
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        print(f"\n--- Initial JSON parse failed: {e}. Attempting to repair. ---")
+
+        text = text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        if not text.startswith('['):
+            print("--- Repair failed: Text does not start with a list character '['. ---")
+            return None
+
+        nesting_level = 0
+        last_valid_pos = -1
+
+        for i, char in enumerate(text):
+            if char == '{' or char == '[':
+                nesting_level += 1
+            elif char == '}' or char == ']':
+                nesting_level -= 1
+
+
+            if char == '}' and nesting_level == 1:
+                last_valid_pos = i
+
+        if last_valid_pos == -1:
+            print("--- Repair failed: Could not find any complete top-level objects in the JSON string. ---")
+            return None
+
+        truncated_text = text[:last_valid_pos + 1]
+
+        repaired_json_text = truncated_text + "\n]"
+
+        print("--- Attempting to parse repaired JSON... ---")
+        try:
+            repaired_data = json.loads(repaired_json_text)
+            print(f"--- Successfully salvaged {len(repaired_data)} top-level comments. ---")
+            return repaired_data
+        except json.JSONDecodeError as e2:
+            print(f"--- Final repair attempt failed: {e2} ---")
+            print("--- The truncated and repaired JSON was: ---")
+            print(repaired_json_text)
+            return None
+
 
 def generate_reddit_comments(post_title, post_body, image_object=None):
     post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
@@ -243,12 +295,13 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
             max_output_tokens=3000,
             response_mime_type="application/json"))
 
-    try:
-        reddit_data = json.loads(response.text)
+    reddit_data = repair_and_parse_json(response.text)
+
+    if reddit_data:
         print("--- Successfully Parsed JSON Data ---")
         return reddit_data
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"\n--- Error: Failed to parse JSON from the AI's response: {e} ---")
+    else:
+        print(f"\n--- Error: Failed to parse JSON, and repair attempt was unsuccessful. ---")
         print("Raw AI response was:")
         print(response.text)
         return None
