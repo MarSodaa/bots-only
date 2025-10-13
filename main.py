@@ -292,6 +292,8 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
     response = client.generate_content(
         contents=api_contents,
         generation_config=types.GenerationConfig(
+        temperature=2.0,
+        top_p=0.95,
             max_output_tokens=3000,
             response_mime_type="application/json"))
 
@@ -459,17 +461,4 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
