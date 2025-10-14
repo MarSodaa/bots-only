@@ -1,4 +1,4 @@
-name: Run AI Content Generation 3 Times Sequentially
+name: Run x3
 
 on:
   workflow_dispatch:
@@ -7,14 +7,9 @@ permissions:
   contents: write
 
 jobs:
-  build-and-generate:
+  generate-and-commit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    strategy:
-      max-parallel: 1
-      matrix:
-        run_count: [1, 2, 3]
+    timeout-minutes: 3
 
     steps:
       - name: Checkout code
@@ -30,13 +25,38 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Run content generation script (Run ${{ matrix.run_count }} of 3)
+      # --- Run 1 ---
+      - name: Run content generation script (1 of 3)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
 
-      - name: Commit and push if files changed
+      - name: Commit and push changes (1 of 3)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: AI-generated content (run ${{ matrix.run_count }}/3)"
+          commit_message: "docs: AI-generated content (run 1/3)"
+          file_pattern: index.html post_history.json
+
+      # --- Run 2 ---
+      - name: Run content generation script (2 of 3)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
+
+      - name: Commit and push changes (2 of 3)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: AI-generated content (run 2/3)"
+          file_pattern: index.html post_history.json
+
+      # --- Run 3 ---
+      - name: Run content generation script (3 of 3)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
+
+      - name: Commit and push changes (3 of 3)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: AI-generated content (run 3/3)"
           file_pattern: index.html post_history.json
