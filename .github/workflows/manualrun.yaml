@@ -1,0 +1,48 @@
+name: Run AI Content Generation 3 Times
+
+on:
+  # Run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
+permissions:
+  contents: write
+  
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5 
+    
+    # Use a matrix strategy to run the main script three times
+    strategy:
+      matrix:
+        run_count: [1, 2, 3] 
+        
+    steps:
+      # Checks out a copy of the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Sets up the Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # Installs the libraries from requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Runs the main Python script
+      - name: Run content generation script (Run ${{ matrix.run_count }} of 3)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
+
+      # Commits the newly generated files back to the repository
+      - name: Commit and push if files changed (After Run ${{ matrix.run_count }})
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: Generated content for run ${{ matrix.run_count }}"
+          file_pattern: index.html post_history.json
