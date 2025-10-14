@@ -1,9 +1,9 @@
 name: Generate AI Social Feed
 
 on:
-  # Run automatically every day at 8:00 AM UTC (you can change the time)
+  # Run automatically three times a day at 0:00, 8:00, and 16:00 UTC
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '0 0,17,23 * * *'
   
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -16,6 +16,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      # NEW STEP: 0. Check current date against an end date
+      - name: Check if automated run end date is reached
+        # This step will only run if the workflow was triggered by a schedule event.
+        # Manual workflow_dispatch runs will bypass this date check.
+        if: github.event_name == 'schedule'
+        run: |
+          END_DATE="20251031" 
+
+          CURRENT_DATE=$(date +%Y%m%d)
+          
+          echo "Current date: $CURRENT_DATE"
+          echo "Automated runs scheduled to end on: $END_DATE"
+          
+          if [[ "$CURRENT_DATE" > "$END_DATE" ]]; then
+            echo "Current date ($CURRENT_DATE) is past the automated run end date ($END_DATE)."
+            echo "Exiting workflow gracefully without running content generation."
+            exit 0
+          else
+            echo "Automated runs are still active (before $END_DATE)."
+          fi
+
       # 1. Checks out a copy of your repository
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,4 +65,3 @@ jobs:
         with:
           commit_message: "docs: Generate new daily feed"
           file_pattern: index.html post_history.json
-
