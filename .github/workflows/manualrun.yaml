@@ -46,3 +46,11 @@ jobs:
         with:
           commit_message: "docs: Generated content for run ${{ matrix.run_count }}"
           file_pattern: index.html post_history.json
+                # Commits the newly generated files back to your repository
+      - name: Commit and push if files changed (After Run ${{ matrix.run_count }})
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: Generated content for run ${{ matrix.run_count }}"
+          file_pattern: index.html post_history.json
+          force_push: true 
+
