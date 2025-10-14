@@ -25,7 +25,7 @@ MAX_POSTS_TO_DISPLAY = 20
 FILTERED_USERS = ["/u/AutoModerator", # Filters out sticky posts by these users
                   "/u/rGamesModBot",
                   "/u/AITAMod"]
-NUMBER_OF_NEW_POSTS = 3
+NUMBER_OF_NEW_POSTS = 1
 
 RSS_FEEDS = [
     "https://www.reddit.com/r/animenews/.rss",
@@ -552,4 +552,5 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
+
 
