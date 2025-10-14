@@ -1,4 +1,4 @@
-name: Run x3
+name: Run AI Content Generation 3 Times Sequentially
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
 jobs:
   generate-and-commit:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -25,38 +25,19 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # --- Run 1 ---
-      - name: Run content generation script (1 of 3)
+      - name: Generate Content 3 Times
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python main.py
+        run: |
+          for i in 1 2 3
+          do
+            echo "--- Starting content generation run $i of 3 ---"
+            python main.py
+            echo "--- Finished run $i of 3 ---"
+          done
 
-      - name: Commit and push changes (1 of 3)
+      - name: Commit and push if files changed
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: AI-generated content (run 1/3)"
-          file_pattern: index.html post_history.json
-
-      # --- Run 2 ---
-      - name: Run content generation script (2 of 3)
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python main.py
-
-      - name: Commit and push changes (2 of 3)
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "docs: AI-generated content (run 2/3)"
-          file_pattern: index.html post_history.json
-
-      # --- Run 3 ---
-      - name: Run content generation script (3 of 3)
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python main.py
-
-      - name: Commit and push changes (3 of 3)
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "docs: AI-generated content (run 3/3)"
+          commit_message: "docs: AI-generated content (batch of 3)"
           file_pattern: index.html post_history.json
