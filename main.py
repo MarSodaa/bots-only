@@ -18,10 +18,10 @@ if not GEMINI_API_KEY:
 MODEL_CHOICE = "gemini-2.5-flash-lite"
 CONTEXT_WINDOW = 10000
 MAX_USERS = 10
-TEST_HEADLINE = None
+TEST_HEADLINE = ""
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
-MAX_POSTS_TO_DISPLAY = 20
+MAX_POSTS_TO_DISPLAY = 30
 FILTERED_USERS = ["/u/AutoModerator", # Filters out sticky posts by these users
                   "/u/rGamesModBot",
                   "/u/AITAMod"]
@@ -205,54 +205,59 @@ def get_headline(feed_url):
 
 # In case the llm abruptly ends mid-comment (Thanks, Schnitzel)
 def repair_and_parse_json(text: str):
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:-3]
+    elif text.startswith("```"):
+        text = text[3:-3]
+    text = text.strip()
+
     try:
-        return json.loads(text)
+        data = json.loads(text)
+        return _clean_parsed_json(data)
     except json.JSONDecodeError as e:
-        print(f"\n--- Initial JSON parse failed: {e}. Attempting to repair. ---")
+        print(f"\n--- Initial JSON parse failed: {e}. Attempting repairs. ---")
 
-        text = text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
-
-        if not text.startswith('['):
-            print("--- Repair failed: Text does not start with a list character '['. ---")
-            return None
-
-        nesting_level = 0
-        last_valid_pos = -1
-
-        for i, char in enumerate(text):
-            if char == '{' or char == '[':
-                nesting_level += 1
-            elif char == '}' or char == ']':
-                nesting_level -= 1
+    repaired_text = text.replace('\\"', '"')
+    try:
+        print("--- Trying to parse again after cleaning escaped quotes... ---")
+        data = json.loads(repaired_text)
+        return _clean_parsed_json(data)
+    except json.JSONDecodeError as e2:
+        print(f"--- Cleaning escaped quotes did not fix the issue: {e2}. ---")
 
 
-            if char == '}' and nesting_level == 1:
-                last_valid_pos = i
+    if not text.startswith('['):
+        print("--- Repair failed: Text does not start with a list character '['. ---")
+        return None
 
-        if last_valid_pos == -1:
-            print("--- Repair failed: Could not find any complete top-level objects in the JSON string. ---")
-            return None
+    last_valid_pos = text.rfind('}')
+    if last_valid_pos == -1:
+        print("--- Repair failed: Could not find any closing brace in the JSON string. ---")
+        return None
 
-        truncated_text = text[:last_valid_pos + 1]
+    truncated_text = text[:last_valid_pos + 1]
+    repaired_json_text = truncated_text + "\n]"
 
-        repaired_json_text = truncated_text + "\n]"
+    print("--- Attempting to parse repaired truncated JSON... ---")
+    try:
+        repaired_data = json.loads(repaired_json_text)
+        print(f"--- Successfully salvaged {len(repaired_data)} top-level comments from truncated output. ---")
+        return _clean_parsed_json(repaired_data)
+    except json.JSONDecodeError as e3:
+        print(f"--- Final repair attempt failed: {e3} ---")
+        print("--- The truncated and repaired JSON was: ---")
+        print(repaired_json_text)
+        return None
 
-        print("--- Attempting to parse repaired JSON... ---")
-        try:
-            repaired_data = json.loads(repaired_json_text)
-            print(f"--- Successfully salvaged {len(repaired_data)} top-level comments. ---")
-            return repaired_data
-        except json.JSONDecodeError as e2:
-            print(f"--- Final repair attempt failed: {e2} ---")
-            print("--- The truncated and repaired JSON was: ---")
-            print(repaired_json_text)
-            return None
-
+def _clean_parsed_json(obj):
+    if isinstance(obj, dict):
+        return {k: _clean_parsed_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean_parsed_json(elem) for elem in obj]
+    if isinstance(obj, str):
+        return obj.replace('*', '')
+    return obj
 
 def generate_reddit_comments(post_title, post_body, image_object=None):
     post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
@@ -272,41 +277,58 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
     reddit_prompt = (
         f"You are an API that generates a simulated Reddit comment section for a given headline. "
         f"Your final output must be a single, valid JSON object and nothing else. Do not include any explanatory text before or after the JSON. "
-        f"The JSON object should be a list of top-level comment objects, each with 'author', 'comment', 'upvotes', and 'replies' keys.\n\n"
+        f"The JSON object should be a list of top-level comment objects, each with 'author', 'comment', 'upvotes', and 'replies' keys. The 'replies' key contains a list of nested comment objects.\n\n"
         f"Here are your personas: {personas}\n\n"
         f"Remember, any persona can make a short comment. An 'Expert Analyst' isn't limited to long paragraphs; they can also make a cutting, one-phrase joke or observation.\n"
         f"{post_content_prompt}"
-        f"CRITICAL INSTRUCTION & EXAMPLES \n"
-        f"The Rule of Balance: To ensure a realistic balance, you MUST adhere to a specific mix. At least 40% of the top-level comments must be 'short-form.' A short-form comment is defined as being under 25 words. These are the memes, the one-line zingers, and the gut reactions. The remaining comments can be the longer, detailed analyses. This balance is not optional.\n\n"
-        f"The MOST IMPORTANT RULE is that the comment section as a whole MUST feel like it's from a genuine fan community. This means creating a realistic mix of comment types. Some comments should be the detailed analyses you've been getting, but many should be the short, punchy reactions, in-jokes, or memes that define online discussion.\n\n"
-        f"All comments, regardless of length, must demonstrate specific knowledge. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. The persona's traits should COLOR their commentary, not REPLACE it.\n\n"
-        f"How to Demonstrate Knowledge in Different Comment Lengths:\n\n"
-        f"1.  Detailed Analysis: Mention specific characters, plot points, historical context, previous installments (e.g., Season 1 vs Season 2), or well-known controversies.\n"
-        f"2.  Short & Punchy Quips: Use community-specific memes, nicknames, or references to well-known moments that another fan would instantly understand.\n\n"
+        f"CRITICAL INSTRUCTIONS & EXAMPLES \n"
+        f"You must follow TWO primary rules to create a realistic comment section:\n\n"
+        f"RULE 1: The Rule of Balance. To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) must be 'short-form.' A short-form comment is defined as being under 25 words. These are the memes, the one-line zingers, and the gut reactions. This balance is not optional.\n\n"
+        f"RULE 2: The Rule of Conversation. The primary goal is to simulate a conversation, not a list of disconnected statements. Therefore, you MUST create deep comment threads. At least 50% of the personas used MUST reply to another comment rather than creating a new top-level comment. A flat list of many top-level comments with no replies is a FAILED generation.\n\n"
+        f"All comments, regardless of length or depth, must demonstrate specific knowledge. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. The persona's traits should COLOR their commentary, not REPLACE it.\n\n"
+        f"--- EXAMPLES OF GOOD COMMENT *CONTENT* ---\n"
         f"For example, if the headline is 'One Punch Man Season 3: 6.5 Years Wait for Same Recycled Animation':\n\n"
-        f"GOOD EXAMPLE (Detailed Analysis):\n"
-        f"\"author\": \"Prodigy_von_Ordelia\", \"comment\": \"Six and a half years for this? After the absolute disaster that was J.C. Staff's handling of Season 2, particularly the metal shine on Genos and the slideshow-level Garou fight, I expected a complete overhaul. To hear it's 'recycled animation' suggests they learned nothing. Unacceptable. The Monster Association arc deserves cinematic quality, not this lazy cash-grab.\"\n"
-        f"(This is good because it's a detailed rant mentioning the specific studio, character animation issues, a specific character, and a major story arc.)\n\n"
-        f"GOOD EXAMPLE (Short & Knowledgeable):\n"
-        f"\"author\": \"ChadThunderclap\", \"comment\": \"JC Staff and their damn metal shine, name a more iconic duo. I'll wait.\"\n"
-        f"(This is also good. It's short but demonstrates knowledge of the specific, widely-criticized 'metal shine' animation from Season 2 and the studio responsible.)\n\n"
-        f"ANOTHER GOOD SHORT EXAMPLE:\n"
-        f"\"author\": \"PixelProwler\", \"comment\": \"So we're getting Garou vs. PowerPoint again? Cool cool cool.\"\n"
-        f"(This is good because it uses a meme format to reference the specific 'slideshow' feel of a major fight in the previous season.)\n\n"
-        f"BAD EXAMPLE (Generic, Lacks Knowledge):\n"
-        f"\"author\": \"Prodigy_von_Ordelia\", \"comment\": \"A 6.5-year delay is an unacceptable level of inefficiency. Studios need to be held to a higher standard. This is a fundamental mismanagement of resources.\"\n"
-        f"(This is bad because it could be about any animated show. It contains no specific details about One Punch Man.)\n\n"
+        f"GOOD (Detailed): \"author\": \"Prodigy_von_Ordelia\", \"comment\": \"Six and a half years for this? After the disaster of J.C. Staff's handling of S2, particularly the metal shine on Genos and the slideshow-level Garou fight, I expected a complete overhaul. To hear it's 'recycled animation' suggests they learned nothing. Unacceptable.\"\n"
+        f"GOOD (Short & Knowledgeable): \"author\": \"ChadThunderclap\", \"comment\": \"JC Staff and their damn metal shine, name a more iconic duo. I'll wait.\"\n"
+        f"BAD (Generic): \"author\": \"Prodigy_von_Ordelia\", \"comment\": \"A 6.5-year delay is unacceptable. Studios need to be held to a higher standard.\"\n\n"
+        f"--- EXAMPLE OF GOOD COMMENT *STRUCTURE* (Following the Rule of Conversation) ---\n"
+        f"This shows how personas should reply to each other in a nested thread:\n"
+        f"```json\n"
+        f"[\n"
+        f'  {{\n'
+        f'    "author": "PixelProwler",\n'
+        f'    "comment": "OMG, is that the final boss design? It looks incredible! The particle effects on the sword are insane.",\n'
+        f'    "upvotes": 128,\n'
+        f'    "replies": [\n'
+        f'      {{\n'
+        f'        "author": "Prodigy_von_Ordelia",\n'
+        f'        "comment": "Incredible? The design is derivative of every dark fantasy trope from the last decade. The armor is impractical and the particle effects will just obscure the telegraphing for his attacks. It\'s style over substance.",\n'
+        f'        "upvotes": 45,\n'
+        f'        "replies": [\n'
+        f'          {{\n'
+        f'            "author": "ChadThunderclap",\n'
+        f'            "comment": "lol nerd. Big sword go brrrr.",\n'
+        f'            "upvotes": 250,\n'
+        f'            "replies": []\n'
+        f'          }}\n'
+        f'        ]\n'
+        f'      }}\n'
+        f'    ]\n'
+        f'  }}\n'
+        f']\n'
+        f"```\n"
         f"END OF CRITICAL INSTRUCTIONS \n\n"
         f"FINAL CHECKLIST BEFORE GENERATING \n"
+        f"- Conversational Depth: Does the output feel like a conversation? Are there multiple deep comment threads (2+ replies deep)? Did I follow the Rule of Conversation, ensuring at least half the personas are replying?\n"
         f"- Comment Length Variety: Is there a healthy mix of long and short comments? Did I meet the 40% short-form comment rule?\n"
         f"- Knowledge Depth: Do even the shortest comments contain a specific reference, nickname, or piece of in-community knowledge?\n"
         f"- Overall Vibe: Does this feel like a real, chaotic, and diverse fan forum, not just a collection of essays?\n\n"
         f"Now, generate a full, nested comment section for the provided headline. Remember:\n"
         f"- The diction should be reflective of modern brain rotted online communities.\n"
-        f"- Do not use markdown formatting.\n"
+        f"- Do not use markdown formatting in the final comment text.\n"
         f"- Comment length should vary from short single phrase quips to multi-paragraph rants.\n"
         f"- Do not simulate replies from the original post author. Only use the provided fictional personas.\n"
-        f"- The soul of this comment section is the personas contributing their takes or jokes and bouncing off of each other reacting to one another and replying to one another. There should be a lot of them replying to one another.\n"
+        f"- The PRIMARY GOAL is to create conversation threads where personas react and reply to one another. A long list of un-replied, top-level comments is a failure.\n"
         f"- Ensure the final output is only the JSON object."
     )
 
@@ -320,8 +342,8 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         generation_config=types.GenerationConfig(
         temperature=2.0,
         top_p=0.95,
-            max_output_tokens=3000,
-            response_mime_type="application/json"))
+        max_output_tokens=3000,
+        response_mime_type="application/json"))
 
     reddit_data = repair_and_parse_json(response.text)
 
@@ -552,5 +574,4 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
-
 
