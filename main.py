@@ -18,8 +18,8 @@ if not GEMINI_API_KEY:
 MODEL_CHOICE = "gemini-2.5-flash-lite"
 CONTEXT_WINDOW = 10000
 MAX_USERS = 10
-TEST_HEADLINE = ""
-FORCED_ENGAGEMENT = []
+TEST_HEADLINE = "Can anyone give me step by step instructions on how to make plant based cheese?"
+FORCED_ENGAGEMENT = ["Solid Snake", "Umaru", "Stephnaie Dola", "Tomoko Kuroki", "Shnitzel" "Konata Izumi"]
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 30
 FILTERED_USERS = ["/u/AutoModerator", # Filters out sticky posts by these users
@@ -574,4 +574,5 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
+
 
