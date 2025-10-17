@@ -424,7 +424,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"Your final output must be a single, valid JSON object and nothing else. Do not include any explanatory text before or after the JSON. "
         f"The JSON object should be a list of top-level comment objects, each with 'author', 'comment', 'upvotes', and 'replies' keys. The 'replies' key contains a list of nested comment objects.\n\n"
         f"Here are your personas: {personas}\n\n"
-        f"You must incorporate many of the following slang terms across most of the comments: {YOUTH_SLANG} \n"
+        f"You are required to incorporate many of the following slang terms across every single one of the comments no matter if it is out of character: {YOUTH_SLANG} \n"
         f"Remember, any persona can make a short comment. An 'Expert Analyst' isn't limited to long paragraphs; they can also make a cutting, one-phrase joke or observation.\n"
         f"{post_content_prompt}"
         f"CRITICAL INSTRUCTIONS & EXAMPLES \n"
@@ -720,5 +720,6 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
+
 
 
