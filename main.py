@@ -73,7 +73,7 @@ YOUTH_SLANG = {
     "big yikes": "Used to describe something embarrassing or cringe, particularly in response to an offensive comment.",
     "bop": "(1) A derogatory term, usually for females, suggesting excessive flirtatiousness or promiscuity. (2) An exceptionally good song. (3) An acronym for 'baddie on point', meaning someone who uses their appearance to make money.",
     "brainrot": "The state of losing touch with the real world as a result of consuming hyper-stimulating or chronically online content, especially when characterized by online buzzwords (e.g., 'skibidi', 'fanum tax', 'rizz').",
-    "bro": "Shortened version of brother.",
+    "bro": "Shortened version of brother used as a third person pronoun.",
     "bruh": "Used to express shock, embarrassment, or disappointment.",
     "bugging": "See tweaking for more context.",
     "bussin'": "Extremely good, excellent. Originated from African-American vernacular for delicious food.",
@@ -197,14 +197,14 @@ YOUTH_SLANG = {
     "You good?": "A short hand of the usual 'Are you okay?' greeting, and is generally used to express concern for an acquaintance's well-being.",
     "zesty": "Flamboyant, effeminate, or otherwise using the stereotypical mannerisms of a gay man."
 }
-
+SLANG_NUM = 20
 
 # Forced Feed
 #RSS_FEEDS = ["https://www.reddit.com/r/animememes/.rss"]
 
 # Choose slang
 keys = list(YOUTH_SLANG.keys())
-keys_to_keep = random.sample(keys, 10)
+keys_to_keep = random.sample(keys, SLANG_NUM)
 YOUTH_SLANG = {key: YOUTH_SLANG[key] for key in keys_to_keep}
 print(f"Using slang: {keys_to_keep}")
 
