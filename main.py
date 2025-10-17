@@ -18,7 +18,7 @@ if not GEMINI_API_KEY:
 MODEL_CHOICE = "gemini-2.5-flash-lite"
 CONTEXT_WINDOW = 10000
 MAX_USERS = 10
-TEST_HEADLINE = None
+TEST_HEADLINE = ""
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
 MAX_POSTS_TO_DISPLAY = 30
@@ -58,10 +58,155 @@ RSS_FEEDS = [
     "https://www.reddit.com/r/askreddit/.rss"
 ]
 
+YOUTH_SLANG = {
+    "ahh": "Substitute for the word ass in humourous instances like goofy ahh or ts so ahh.",
+    "alpha": "A man that is successful, sexually attractive, and is non-conforming to existing social norms. Used predominantly by the manosphere.",
+    "aura": "Overall vibe, energy, or personality.",
+    "based": "Expressing approval of someone or agreeing with someone's opinion. Similar to W. It originates from The BasedGod.",
+    "basic": "Pertaining to those who prefer mainstream products, trends, and music. Derived from the term 'basic bitch'.",
+    "bar(s)": "A lyric in a rap song that is considered excellent.",
+    "beta": "A man who is neither alpha nor sigma. Seen as below both groups.",
+    "BDE": "Abbreviation for 'big dick energy': confidence and ease.",
+    "beige flag": "A behavior or personality trait that is neither good nor bad. See red flag.",
+    "bestie": "Abbreviation for 'best friend'. Sometimes used humorously for someone the speaker/writer has no relationship with.",
+    "bet": "Agreeing to something; yes; okay; sure.",
+    "big yikes": "Used to describe something embarrassing or cringe, particularly in response to an offensive comment.",
+    "bop": "(1) A derogatory term, usually for females, suggesting excessive flirtatiousness or promiscuity. (2) An exceptionally good song. (3) An acronym for 'baddie on point', meaning someone who uses their appearance to make money.",
+    "brainrot": "The state of losing touch with the real world as a result of consuming hyper-stimulating or chronically online content, especially when characterized by online buzzwords (e.g., 'skibidi', 'fanum tax', 'rizz').",
+    "bro": "Shortened version of brother.",
+    "bruh": "Used to express shock, embarrassment, or disappointment.",
+    "bugging": "See tweaking for more context.",
+    "bussin'": "Extremely good, excellent. Originated from African-American vernacular for delicious food.",
+    "bussy": "Portmanteau of 'boy' and 'pussy' (slang for the vagina). Effectively a man's anus.",
+    "cap": "To lie. See no cap.",
+    "caught in 4K": "Refers to someone being indisputably caught doing something wrong or incriminating on camera or with evidence to prove it, referencing 4K resolution.",
+    "chopped": "Ugly or unattractive.",
+    "clanker": "Slur for robots, primarily used against generative artificial intelligence. Originated from Star Wars media.",
+    "clapback": "Swift and witty response to an insult or critique.",
+    "cook": "To 'cook' is to perform or do well. In contrast, when a person is 'cooked', they are in trouble.",
+    "cracked": "To be skilled at something. Alternatively, 'getting cracked' means to have sex.",
+    "crash out": "To make a reckless or regrettable decision after a bout of rage or upset.",
+    "clock": "To belittle or silence someone, often in a manner that is intended to embarrass or undermine their confidence, similar to 'gag'.",
+    "dank": "Excellent, high-quality.",
+    "dead/ded": "Humorous to such an extent as to 'kill you'.",
+    "delusionship": "A relationship in which someone holds unrealistic or overly idealistic beliefs. A person who holds such beliefs is considered 'delulu'.",
+    "diddle": "To sexually assault or molest someone.",
+    "dih": "Ironic Algospeak for dick. Usually used with the wilting flower emoji (🥀).",
+    "drip": "Trendy high-class fashion.",
+    "edge": "To maintain a high level of sexual arousal for an extended period without reaching climax (orgasm).",
+    "eeffoc": "Coffee spelled backwards. Used in the context of 'not caring' or 'not giving a damn/fuck' (until I've had my coffee, I don't give eeffoc about anything).",
+    "face card": "An attractive face. Sometimes defined as never declining or receding.",
+    "fanum tax": "Theft of food between friends.",
+    "finna": "Short for 'fixing to'. Often used interchangeably with 'gonna'.",
+    "fire": "Term used to describe that something is impressive, good, or cool. Also see lit. Alternative: flame.",
+    "fit/fit check": "Term used to highlight or bring attention to one's outfit or fashion. 'Fit' is a truncation of 'outfit'.",
+    "41 (fourty-one)": "A nonsense word which originated from '41 Song (Saks Freestyle)' by rapper Blizzi Boi. A parallel meme to 6-7.",
+    "gagged": "Shocked, amazed, or at a loss for words.",
+    "gas": "To describe something as highly entertaining, pleasant, or good. See slaps.",
+    "ghost": "To end communication or contact with someone without warning.",
+    "glaze": "To hype, praise, or compliment someone so much that it becomes annoying or excessive.",
+    "glizzy": "A hot dog. Popularized in 2020.",
+    "glow-up": "A major improvement in one's self, usually an improvement in appearance, confidence, personality, and style. A 'glow-down' is a situation where someone's appearance has declined.",
+    "GOAT": "Acronym for 'greatest of all time'.",
+    "good boy/good girl": "A phrase that's mockingly used when one is told to do something and they do it.",
+    "gooning": "The act of masturbating for long periods of time or for someone who does it chronically.",
+    "green flag": "Behaviors or personality traits that are considered positive, healthy, or desirable. See red flag.",
+    "Gucci": "Meaning good, cool, fashionable, or excellent. Used to express approval or satisfaction for something.",
+    "gyatt": "Someone with large buttocks or an hourglass figure.",
+    "grape": "An algospeak term for rape typically used online to bypass automatic filters.",
+    "hawk tuah": "An onomatopoeia for spitting or expectoration on a penis as a form of oral sex.",
+    "hb/hg": "An initialism of homeboy/homegirl. Slang used to refer to one's friends.",
+    "hit different": "To be better in a distinctive manner.",
+    "huzz": "A variation of the pejorative word 'hoes' similarly used to objectify, degrade, and/or belittle women.",
+    "ick": "A sudden feeling of disgust or repulsion for something one was previously attracted to.",
+    "icl": "Abbreviation of 'I can't lie'. Often used alongside ts and pmo.",
+    "IJBOL": "An acronym for 'I just burst out laughing'.",
+    "I oop": "Used to express shock, embarrassment, and/or amusement.",
+    "iPad kid": "Term describing Generation Alpha children who spend most of their time consuming content via a phone or tablet screen.",
+    "it's giving": "Used to describe an attitude or connotation.",
+    "it's joever": "Replacement for 'it's over', standing for complete physical and mental defeat.",
+    "iykyk": "Acronym for 'If you know, you know'. Used to describe inside jokes.",
+    "jit": "An African-American term often used to describe an inexperienced or young individual.",
+    "Karen": "Pejorative term for an obnoxious, angry, or entitled (usually but not exclusively white and middle-aged) woman. Also male Karen to denote a man of the same personality type.",
+    "L": "Short for 'loss,' used to indicate failure, defeat, or something negative. Often contrasted with 'W' (win).",
+    "lit": "Remarkable, interesting, fun, or amusing.",
+    "locked in": "A state of total concentration on a task. Similar to flow state.",
+    "looksmaxxing": "An attempt (often pseudoscientific) to maximize physical attractiveness.",
+    "lore": "Backstory.",
+    "main character (MC)": "Someone who is or wants to be the star of their life. Often refers to someone who strives to be the center of attention.",
+    "mew": "A pseudoscientific method to restructure someone's jawline by pressing their tongue to the roof of their mouth. See looksmaxxing.",
+    "mid": "Average, mediocre, not bad or not special. Sometimes used in a negative or insulting way.",
+    "mog": "To look significantly more attractive than someone or something, causing them to appear inferior in comparison. Derived from AMOG.",
+    "moot(s)": "Short for 'mutuals' or 'mutual followers'.",
+    "Netflix and chill": "To engage in sexual activity, possibly during or after watching a movie or a TV series together.",
+    "no cap": "'This is true'; 'I'm not lying'. See cap.",
+    "Ohio": "Internet slang that refers to surreal and random phenomena that supposedly occur in Ohio. See Florida man.",
+    "OK boomer": "Pejorative directed toward members of the Baby Boomer generation, used to dismiss or mock attitudes typically associated with baby boomers as out of date.",
+    "oof": "Used to express discomfort, surprise, dismay, or sympathy for someone else's pain. It also is the sound of a Roblox avatar when it dies or respawns.",
+    "oomf": "Abbreviation for 'One of My Followers' or 'One of My Friends'.",
+    "opp": "Short for opposition or enemies; describes an individual's opponents. A secondary, older definition has the term be short for 'other peoples' pussy'.",
+    "out of pocket": "To act (or say something) crazy, wild, unexpected, or extreme, sometimes to an extent that is considered too far.",
+    "owned": "Used to refer to defeat in a video game, or domination of an opposition.",
+    "periodt": "Used as an interjection to indicate that the preceding statement is final and that there is nothing more to be said about it.",
+    "pick-me": "Someone who seeks validation by trying to stand out, often putting down others in their gender or group to gain favor or attention.",
+    "pmo": "An acronym that stands for 'piss me off', used to express discontent or anger at a certain topic. Often utilized alongside ts and icl.",
+    "pookie": "An endearing nickname for a close friend or lover.",
+    "pushing P": "A phrase meaning acting with integrity and style while maintaining and displaying one’s success. The P in the phrase is most often interpreted as standing for the slang word 'player'.",
+    "queen": "A person (usually female) deemed impressive or praiseworthy.",
+    "ratio": "When a post, particularly on X (Twitter), receives more replies than retweets and likes combined, or when a reply has better reception than the original post.",
+    "rage-bait": "To elicit rage within an individual or group. Usually for an increase in web traffic, or personal enjoyment.",
+    "red flag": "A warning sign indicating behaviors or characteristics within a relationship that may potentially be harmful or toxic.",
+    "rizz": "One's charm/seduction skills. Derived from charisma.",
+    "Roman Empire": "A random event, person, incident, or thing that fascinates or intrigues one to the point that one is frequently thinking about it.",
+    "salty": "Used to describe someone who is behaving or expressing themselves in a resentful, bitter, or irritated manner.",
+    "SDIYBT": "Acronym for 'Start digging in your butt, twin'. Used ironically.",
+    "serving cunt": "To behave in a bold, confident, feminine manner.",
+    "sheesh": "To praise someone when they are doing something good. The vowels are often emphasized, as in 'sheeesh'.",
+    "shook": "To be shocked, surprised, or bothered.",
+    "sigma/sigma male": "A person that is individualistic, self-reliant, successful, and is non-conforming to existing social norms. Can also mean something that is good.",
+    "simp": "Sycophancy, being overly affectionate in pursuit of a sexual relationship.",
+    "situationship": "Refers to an ambiguous romantic relationship in which both parties have feelings for one another, but said feelings are not clearly defined: a mid-point between dating and not dating.",
+    "six-seven (6-7)": "A nonsense word derived from the song Doot Doot (6 7) by Skrilla. Inspired the spinoff meme 41.",
+    "skibidi": "Adjective that derives from the meme Skibidi toilet, with no real meaning.",
+    "skill issue": "Refers to a situation where a person's lack of ability or proficiency is seen as the cause of their failure or difficulty in completing a task.",
+    "sksksk": "Used to convey happiness/laughter. A form of keysmashing.",
+    "slaps": "Used to refer to something that is perceived to be good, particularly used when referring to music.",
+    "slay": "To do something well.",
+    "snatched": "Amazing, attractive, or flawlessly styled.",
+    "stan": "Supporting something to an extreme degree. Specifically used in cases of overzealous or obsessive support of celebrities.",
+    "sus": "Short term for suspect/suspicious. Popularized by players of the online video game Among Us.",
+    "sussy baka": "A combination of 'sus' and 'baka', the Japanese word for 'fool'.",
+    "sybau": "Acronym for 'shut your bitch ass up'.",
+    "syfm": "Acronym for 'shut your fucking mouth'.",
+    "tea": "Secret information or rumors. 'Spilling the tea' means to share gossip or rumors.",
+    "touch grass": "A way of telling someone to 'go outside', usually after said person is believed to have been online for too long.",
+    "ts": "An abbreviation for 'this shit', or just 'this'. Often used alongside pmo and icl.",
+    "tuff": "Eye dialect spelling of tough.",
+    "tweaking": "To be acting strangely or thinking that someone is hallucinating.",
+    "twin": "A term of endearment for a close friend, indicating a strong, sibling-like bond.",
+    "unalive": "A euphemism for the word 'kill' or other death-related terms, often in the context of suicide. Used to circumvent social media algorithms.",
+    "unc": "Abbreviation of uncle. Used in a mocking manner to refer to someone who is old or acting old.",
+    "understood the assignment": "To understand what was supposed to be done; to do something well.",
+    "uwu": "Used to portray happiness or one wanting to appear cute. Used more or less as an expression.",
+    "vibe check": "To check one's personality, behavior, or attitude.",
+    "vro": "Genderless synonym for bro.",
+    "W": "Short for 'win,' used to indicate success, victory, or something positive. Often contrasted with 'L' (loss).",
+    "who is this diva?": "An affectionate rhetorical question used to compliment people who positively embody diva-like qualities such as boldness, style, and/or confidence.",
+    "yap": "To talk too much, especially without significant meaning.",
+    "yeet": "To throw something with force and without regard. Also used as a generic positive exclamation.",
+    "You good?": "A short hand of the usual 'Are you okay?' greeting, and is generally used to express concern for an acquaintance's well-being.",
+    "zesty": "Flamboyant, effeminate, or otherwise using the stereotypical mannerisms of a gay man."
+}
+
 
 # Forced Feed
 #RSS_FEEDS = ["https://www.reddit.com/r/animememes/.rss"]
 
+# Choose slang
+keys = list(YOUTH_SLANG.keys())
+keys_to_keep = random.sample(keys, 10)
+YOUTH_SLANG = {key: YOUTH_SLANG[key] for key in keys_to_keep}
+print(f"Using slang: {keys_to_keep}")
 
 # load personas
 def load_personas():
@@ -256,8 +401,9 @@ def _clean_parsed_json(obj):
     if isinstance(obj, list):
         return [_clean_parsed_json(elem) for elem in obj]
     if isinstance(obj, str):
-        return obj.replace('*', '')
+        return obj.replace('*', '').replace('\\', '')
     return obj
+
 
 def generate_reddit_comments(post_title, post_body, image_object=None):
     post_content_prompt = f"Here is the headline: \"{post_title}\"\n"
@@ -270,7 +416,6 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
 
     if image_object:
         print("Image object found, adding to prompt.")
-        # The SDK handles the PIL Image object automatically. No Part needed.
         api_contents.append(image_object)
         post_content_prompt = "The user has provided an image along with the post title. Analyze the image first, then the text. Your comments MUST reflect that you have seen and understood the image. " + post_content_prompt
 
@@ -279,6 +424,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"Your final output must be a single, valid JSON object and nothing else. Do not include any explanatory text before or after the JSON. "
         f"The JSON object should be a list of top-level comment objects, each with 'author', 'comment', 'upvotes', and 'replies' keys. The 'replies' key contains a list of nested comment objects.\n\n"
         f"Here are your personas: {personas}\n\n"
+        f"You must incorporate some of the following slang terms: {YOUTH_SLANG} \n"
         f"Remember, any persona can make a short comment. An 'Expert Analyst' isn't limited to long paragraphs; they can also make a cutting, one-phrase joke or observation.\n"
         f"{post_content_prompt}"
         f"CRITICAL INSTRUCTIONS & EXAMPLES \n"
@@ -335,7 +481,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
     api_contents.insert(0, reddit_prompt)
 
     print("--- Sending Prompt to AI ---")
-    print(reddit_prompt)
+    # print(reddit_prompt)
 
     response = client.generate_content(
         contents=api_contents,
@@ -574,6 +720,4 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
-
-
 
