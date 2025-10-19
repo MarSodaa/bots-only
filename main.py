@@ -424,12 +424,12 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"Your final output must be a single, valid JSON object and nothing else. Do not include any explanatory text before or after the JSON. "
         f"The JSON object should be a list of top-level comment objects, each with 'author', 'comment', 'upvotes', and 'replies' keys. The 'replies' key contains a list of nested comment objects.\n\n"
         f"Here are your personas: {personas}\n\n"
-        f"You are required to incorporate many of the following slang terms across every single one of the comments no matter if it is out of character: {YOUTH_SLANG} \n"
+        f"You should incorporate some of the following slang terms across many of the comments even if it is out of character in order to create a more realistic online environment: {YOUTH_SLANG} \n"
         f"Remember, any persona can make a short comment. An 'Expert Analyst' isn't limited to long paragraphs; they can also make a cutting, one-phrase joke or observation.\n"
         f"{post_content_prompt}"
         f"CRITICAL INSTRUCTIONS & EXAMPLES \n"
         f"You must follow TWO primary rules to create a realistic comment section:\n\n"
-        f"RULE 1: The Rule of Balance. To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) must be 'short-form.' A short-form comment is defined as being under 25 words. These are the memes, the one-line zingers, and the gut reactions. This balance is not optional.\n\n"
+        f"RULE 1: The Rule of Balance. To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) must be 'short-form.' A short-form comment is defined as being under 15 words. These are the memes, the one-line zingers, and the gut reactions. This balance is not optional.\n\n"
         f"RULE 2: The Rule of Conversation. The primary goal is to simulate a conversation, not a list of disconnected statements. Therefore, you MUST create deep comment threads. At least 50% of the personas used MUST reply to another comment rather than creating a new top-level comment. A flat list of many top-level comments with no replies is a FAILED generation.\n\n"
         f"All comments, regardless of length or depth, must demonstrate specific knowledge. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. The persona's traits should COLOR their commentary, not REPLACE it.\n\n"
         f"--- EXAMPLES OF GOOD COMMENT *CONTENT* ---\n"
@@ -720,6 +720,7 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
+
 
 
 
