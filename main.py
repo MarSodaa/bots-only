@@ -429,9 +429,9 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"{post_content_prompt}"
         f"CRITICAL INSTRUCTIONS & EXAMPLES \n"
         f"You must follow TWO primary rules to create a realistic comment section:\n\n"
-        f"RULE 1: The Rule of Balance. To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) must be 'short-form.' A short-form comment is defined as being under 15 words. These are the memes, the one-line zingers, and the gut reactions. This balance is not optional.\n\n"
+        f"RULE 1: The Rule of Balance. To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) must be 'short-form.' A short-form comment is defined as being under 15 words, often a single sentence, phrase, emoji-laden response, or even just a few words. These are the memes, the one-line zingers, quick reactions, and gut feelings. This balance is not optional.\n\n"
         f"RULE 2: The Rule of Conversation. The primary goal is to simulate a conversation, not a list of disconnected statements. Therefore, you MUST create deep comment threads. At least 50% of the personas used MUST reply to another comment rather than creating a new top-level comment. A flat list of many top-level comments with no replies is a FAILED generation.\n\n"
-        f"All comments, regardless of length or depth, must demonstrate specific knowledge. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. The persona's traits should COLOR their commentary, not REPLACE it.\n\n"
+        f"All comments, regardless of length or depth, must demonstrate specific knowledge. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. For very short comments, this 'knowledge' can be conveyed through specific slang, inside jokes, character/lore nicknames, or an informed, immediate emotional reaction that only a true fan would have. The persona's traits should COLOR their commentary, not REPLACE it.\n\n"
         f"--- EXAMPLES OF GOOD COMMENT *CONTENT* ---\n"
         f"For example, if the headline is 'One Punch Man Season 3: 6.5 Years Wait for Same Recycled Animation':\n\n"
         f"GOOD (Detailed): \"author\": \"Prodigy_von_Ordelia\", \"comment\": \"Six and a half years for this? After the disaster of J.C. Staff's handling of S2, particularly the metal shine on Genos and the slideshow-level Garou fight, I expected a complete overhaul. To hear it's 'recycled animation' suggests they learned nothing. Unacceptable.\"\n"
@@ -443,7 +443,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"[\n"
         f'  {{\n'
         f'    "author": "PixelProwler",\n'
-        f'    "comment": "OMG, is that the final boss design? It looks incredible! The particle effects on the sword are insane.",\n'
+        f'    "comment": "OMG, the particle effects on the sword are insane.",\n'
         f'    "upvotes": 128,\n'
         f'    "replies": [\n'
         f'      {{\n'
@@ -470,7 +470,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"- Knowledge Depth: Do even the shortest comments contain a specific reference, nickname, or piece of in-community knowledge?\n"
         f"- Overall Vibe: Does this feel like a real, chaotic, and diverse fan forum, not just a collection of essays?\n\n"
         f"Now, generate a full, nested comment section for the provided headline. Remember:\n"
-        f"- The diction should be reflective of modern brain rotted online communities.\n"
+        f"- The diction should be reflective of modern brain rotted online communities heavily favoring short, fragmented sentences, single-phrase quips, slang, and emojis for many comments,** alongside longer, more detailed discussions.\n"
         f"- Do not use markdown formatting in the final comment text.\n"
         f"- Comment length should vary from short single phrase quips to multi-paragraph rants.\n"
         f"- Do not simulate replies from the original post author. Only use the provided fictional personas.\n"
@@ -720,6 +720,7 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
+
 
 
 
