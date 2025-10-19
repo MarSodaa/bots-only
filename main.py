@@ -429,7 +429,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"{post_content_prompt}"
         f"CRITICAL INSTRUCTIONS & EXAMPLES \n"
         f"You must follow TWO primary rules to create a realistic comment section:\n\n"
-        f"RULE 1: The Rule of Balance. To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) must be 'short-form.' A short-form comment is defined as being under 15 words, often a single sentence, phrase, emoji-laden response, or even just a few words. These are the memes, the one-line zingers, quick reactions, and gut feelings. This balance is not optional.\n\n"
+        f"RULE 1: The Rule of Balance (CRITICAL: MINIMUM 40% SHORT-FORM). To ensure realistic variety, you MUST adhere to a specific mix. At least 40% of the total comments (including replies) MUST be 'short-form.' A short-form comment is strictly defined as UNDER 15 WORDS, often a single sentence, phrase, emoji-laden response, or even just a few words. These are the memes, the one-line zingers, quick reactions, and gut feelings. This balance is not optional.\n\n"
         f"RULE 2: The Rule of Conversation. The primary goal is to simulate a conversation, not a list of disconnected statements. Therefore, you MUST create deep comment threads. At least 50% of the personas used MUST reply to another comment rather than creating a new top-level comment. A flat list of many top-level comments with no replies is a FAILED generation.\n\n"
         f"All comments, regardless of length or depth, must demonstrate specific knowledge. They must talk as if they are true fans, critics, or experts who are deeply familiar with the subject. For very short comments, this 'knowledge' can be conveyed through specific slang, inside jokes, character/lore nicknames, or an informed, immediate emotional reaction that only a true fan would have. The persona's traits should COLOR their commentary, not REPLACE it.\n\n"
         f"--- EXAMPLES OF GOOD COMMENT *CONTENT* ---\n"
@@ -466,7 +466,7 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
         f"END OF CRITICAL INSTRUCTIONS \n\n"
         f"FINAL CHECKLIST BEFORE GENERATING \n"
         f"- Conversational Depth: Does the output feel like a conversation? Are there multiple deep comment threads (2+ replies deep)? Did I follow the Rule of Conversation, ensuring at least half the personas are replying?\n"
-        f"- Comment Length Variety: Is there a healthy mix of long and short comments? Did I meet the 40% short-form comment rule?\n"
+        f"- Comment Length Variety: Is there a healthy mix of long and short comments? Did I meet the 40% short-form rule (UNDER 15 WORDS)?\n"
         f"- Knowledge Depth: Do even the shortest comments contain a specific reference, nickname, or piece of in-community knowledge?\n"
         f"- Overall Vibe: Does this feel like a real, chaotic, and diverse fan forum, not just a collection of essays?\n\n"
         f"Now, generate a full, nested comment section for the provided headline. Remember:\n"
@@ -720,6 +720,7 @@ if __name__ == "__main__":
 
         completed_posts += 1
         time.sleep(2)
+
 
 
 
