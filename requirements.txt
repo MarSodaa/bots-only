@@ -4,3 +4,6 @@ google-generativeai
 beautifulsoup4
 requests
 Pillow
+sentence-transformers
+scikit-learn
+numpy

@@ -11,6 +11,11 @@ import time
 import requests
 from PIL import Image
 import io
+from sentence_transformers import SentenceTransformer
+from sklearn.cluster import AgglomerativeClustering
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
@@ -21,8 +26,8 @@ MAX_USERS = 10
 TEST_HEADLINE = ""
 FORCED_ENGAGEMENT = []
 HISTORY_FILE = "post_history.json"
-MAX_POSTS_TO_DISPLAY = 30
-FILTERED_USERS = ["/u/AutoModerator", # Filters out sticky posts by these users
+MAX_POSTS_TO_DISPLAY = 200
+FILTERED_USERS = ["/u/AutoModerator",  # Filters out sticky posts by these users
                   "/u/rGamesModBot",
                   "/u/AITAMod"]
 NUMBER_OF_NEW_POSTS = 1
@@ -199,16 +204,16 @@ YOUTH_SLANG = {
 }
 SLANG_NUM = 20
 
-# Forced Feed
-#RSS_FEEDS = ["https://www.reddit.com/r/animememes/.rss"]
-
 # Choose slang
 keys = list(YOUTH_SLANG.keys())
 keys_to_keep = random.sample(keys, SLANG_NUM)
 YOUTH_SLANG = {key: YOUTH_SLANG[key] for key in keys_to_keep}
 print(f"Using slang: {keys_to_keep}")
 
-# load personas
+# Load the sentence transformer model once at the start of the script
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+
 def load_personas():
     try:
         with open("personas.yml", 'r', encoding='utf-8') as ymlfile:
@@ -312,7 +317,6 @@ def get_headline(feed_url):
         post_body = ""
         image_object = None
 
-
         if hasattr(entry, 'content'):
             html_content = entry.content[0].value
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -348,7 +352,7 @@ def get_headline(feed_url):
         "Could not find a new post (not by a filtered user and not previously posted) in the recent entries after several attempts.")
     return None
 
-# In case the llm abruptly ends mid-comment (Thanks, Schnitzel)
+
 def repair_and_parse_json(text: str):
     text = text.strip()
     if text.startswith("```json"):
@@ -370,7 +374,6 @@ def repair_and_parse_json(text: str):
         return _clean_parsed_json(data)
     except json.JSONDecodeError as e2:
         print(f"--- Cleaning escaped quotes did not fix the issue: {e2}. ---")
-
 
     if not text.startswith('['):
         print("--- Repair failed: Text does not start with a list character '['. ---")
@@ -394,6 +397,7 @@ def repair_and_parse_json(text: str):
         print("--- The truncated and repaired JSON was: ---")
         print(repaired_json_text)
         return None
+
 
 def _clean_parsed_json(obj):
     if isinstance(obj, dict):
@@ -481,15 +485,14 @@ def generate_reddit_comments(post_title, post_body, image_object=None):
     api_contents.insert(0, reddit_prompt)
 
     print("--- Sending Prompt to AI ---")
-    # print(reddit_prompt)
 
     response = client.generate_content(
         contents=api_contents,
         generation_config=types.GenerationConfig(
-        temperature=2.0,
-        top_p=0.95,
-        max_output_tokens=3000,
-        response_mime_type="application/json"))
+            temperature=2.0,
+            top_p=0.95,
+            max_output_tokens=3000,
+            response_mime_type="application/json"))
 
     reddit_data = repair_and_parse_json(response.text)
 
@@ -544,12 +547,13 @@ def format_comment(comment, depth=0):
     return html
 
 
-def format_single_post_html(post_data):
+def format_single_post_html(post_data, topic_id=None):
     headline_title = post_data['headline']['title']
     headline_link = post_data['headline']['link']
     post_body = post_data['headline'].get('body')
     generation_time = post_data['timestamp']
     comments_data = post_data['comments']
+    topic_data_attribute = f"data-topic-id='topic-{topic_id}'" if topic_id is not None else ""
 
     body_preview_html = ""
     if post_body:
@@ -559,45 +563,108 @@ def format_single_post_html(post_data):
 
     comments_html = ""
     if comments_data:
-        first_comment = comments_data[0]
-        comments_html += format_comment(first_comment)
+        if len(comments_data) > 0:
+            first_comment = comments_data[0]
+            comments_html += format_comment(first_comment)
 
-        if len(comments_data) > 1:
-            rest_of_comments = comments_data[1:]
+            if len(comments_data) > 1:
+                rest_of_comments = comments_data[1:]
 
-            comments_html += f"""
-            <button class="toggle-comments-btn" onclick="toggleComments(this)">
-                Show {len(rest_of_comments)} More Comments
-            </button>
-            """
+                comments_html += f"""
+                <button class="toggle-comments-btn" onclick="toggleComments(this)">
+                    Show {len(rest_of_comments)} More Comments
+                </button>
+                """
 
-            rest_of_comments_html = ""
-            for comment in rest_of_comments:
-                rest_of_comments_html += format_comment(comment)
+                rest_of_comments_html = ""
+                for comment in rest_of_comments:
+                    rest_of_comments_html += format_comment(comment)
 
-            comments_html += f'<div class="collapsible-comments collapsed">{rest_of_comments_html}</div>'
+                comments_html += f'<div class="collapsible-comments collapsed">{rest_of_comments_html}</div>'
 
     return f"""
-    <div class="post-container">
-        <div class="headline">
-            <h2><a href="{headline_link}" target="_blank">{headline_title}</a></h2>
+        <div class="post-container" {topic_data_attribute}>
+            <div class="headline">
+                <h2><a href="{headline_link}" target="_blank">{headline_title}</a></h2>
+            </div>
+            {body_preview_html}
+            <div class="timestamp">
+                <p>Posted on: {generation_time}</p>
+            </div>
+            <hr class="post-divider">
+            <div class="comments-section">
+                {comments_html if comments_html else "<p style='color: #818384; font-style: italic;'>No comments yet.</p>"}
+            </div>
         </div>
-        {body_preview_html}
-        <div class="timestamp">
-            <p>Posted on: {generation_time}</p>
-        </div>
-        <hr class="post-divider">
-        <div class="comments-section">
-            {comments_html if comments_html else "<p style='color: #818384; font-style: italic;'>No comments yet.</p>"}
-        </div>
-    </div>
-    """
+        """
+
+def get_trending_topics(posts_to_analyze):
+    if not posts_to_analyze:
+        return []
+
+    print(f"\n--- Clustering {len(posts_to_analyze)} headlines to find topics ---")
+    headline_titles = [post['headline']['title'] for post in posts_to_analyze]
+    headline_embeddings = embedding_model.encode(headline_titles, convert_to_tensor=False)
+
+    clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=1.5)
+    clustering.fit(headline_embeddings)
+
+    clusters = {}
+    post_to_cluster_map = {i: label for i, label in enumerate(clustering.labels_)}
+
+    for i, label in enumerate(clustering.labels_):
+        if label not in clusters:
+            clusters[label] = []
+        clusters[label].append(i)
+
+    trending_topics = []
+    for label, indices in clusters.items():
+        if len(indices) > 1:
+            cluster_embeddings = headline_embeddings[np.array(indices)]
+            centroid = np.mean(cluster_embeddings, axis=0)
+
+            similarities = cosine_similarity(cluster_embeddings, [centroid])
+            most_representative_index_in_cluster = np.argmax(similarities)
+            original_post_index = indices[most_representative_index_in_cluster]
+
+            topic_name = headline_titles[original_post_index]
+            topic_size = len(indices)
+            trending_topics.append({"name": topic_name, "count": topic_size, "id": label})
+
+    sorted_topics = sorted(trending_topics, key=lambda x: x['count'], reverse=True)
+    print(f"--- Found {len(sorted_topics)} trending topics. ---")
+    return sorted_topics, post_to_cluster_map
 
 
-def generate_feed_html(posts):
+def generate_feed_html(posts, full_post_history):
+    trending_topics, post_to_cluster_map = get_trending_topics(full_post_history)
+
     all_posts_html = ""
-    for post in posts:
-        all_posts_html += format_single_post_html(post)
+    for i, post in enumerate(posts):
+        topic_id = post_to_cluster_map.get(i)
+        all_posts_html += format_single_post_html(post, topic_id)
+
+    trending_list_html = "<ul>"
+    trending_list_html += '<li><a href="#" class="topic-link" onclick="showAllPosts(event)"><strong>Show All Posts</strong></a></li>'
+    if trending_topics:
+        for topic in trending_topics:
+            trending_list_html += f"""
+                <li>
+                    <a href="#" class="topic-link" onclick="filterByTopic('topic-{topic['id']}', event)">
+                        "{topic['name']}" ({topic['count']} posts)
+                    </a>
+                </li>
+            """
+    else:
+        trending_list_html += "<li>No trending topics yet.</li>"
+    trending_list_html += "</ul>"
+
+    trending_html = f"""
+        <h3 class="collapsible-header" onclick="toggleTopicList(this)">Post Clusters &#9662;</h3>
+        <div id="topic-list-content" class="collapsible-content collapsed">
+            {trending_list_html}
+        </div>
+    """
 
     html_template = f"""
     <!DOCTYPE html>
@@ -607,54 +674,64 @@ def generate_feed_html(posts):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Clankernet</title>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #030303; color: #d7dadc; margin: 0; padding: 20px; }}
-            .main-container {{ max-width: 800px; margin: auto; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #030303; color: #d7dadc; margin: 0; }}
+            .content-area {{ max-width: 900px; margin: auto; padding: 20px; }}
             .page-header {{ text-align: center; color: #fff; border-bottom: 2px solid #343536; padding-bottom: 10px; margin-bottom: 40px; }}
+            .trending-topics-container {{ background-color: #1a1a1b; border: 1px solid #343536; border-radius: 8px; padding: 20px; margin-bottom: 30px; }}
+
+            .collapsible-header {{
+                margin-top: 0;
+                cursor: pointer;
+                user-select: none; /* Prevents text selection on click */
+            }}
+            .collapsible-header:hover {{
+                color: #fff;
+            }}
+            /* MODIFICATION END */
+
+            .trending-topics-container ul {{ padding-left: 0; list-style-type: none; margin-bottom: 0; }}
+            .trending-topics-container li {{ margin-bottom: 8px; }}
+            .topic-link {{
+                color: #a6cbe7;
+                text-decoration: none;
+                transition: color 0.2s;
+            }}
+            .topic-link:hover {{
+                color: #d7dadc;
+                text-decoration: underline;
+            }}
+            .topic-link.active {{
+                font-weight: bold;
+                color: #fff;
+            }}
+
+            .main-content {{ width: 100%; }}
             .post-container {{ background-color: #1a1a1b; border: 1px solid #343536; border-radius: 8px; padding: 20px; margin-bottom: 30px; }}
             .headline h2 {{ font-size: 1.5em; margin-bottom: 5px; }}
             .headline a {{ color: #d7dadc; text-decoration: none; }}
             .headline a:hover {{ text-decoration: underline; color: #4f9eed; }}
             .timestamp p {{ font-size: 0.8em; color: #818384; margin-top: 0; }}
+            .post-body-preview {{ margin-top: 10px; padding: 10px; background-color: #242425; border-radius: 4px; }}
+            .post-body-preview p {{ margin: 0; font-size: 0.95em; color: #c0c0c0; }}
             .post-divider {{ border-color: #343536; }}
+            .comments-section {{ margin-top: 20px; }}
             .comment {{ border-left: 2px solid #343536; margin-top: 15px; padding-left: 15px; }}
             .comment-header {{ color: #818384; font-size: 0.8em; margin-bottom: 5px; }}
             .author {{ font-weight: bold; color: #a6cbe7; }}
             .upvotes {{ margin-left: 10px; }}
             .comment-body p {{ margin: 0; line-height: 1.5; }}
 
-            /* --- NEW STYLES FOR COLLAPSIBLE COMMENTS --- */
-            .toggle-comments-btn {{
-                background-color: transparent;
-                border: 1px solid #343536;
-                color: #818384;
-                padding: 5px 10px;
-                margin-top: 15px;
-                margin-left: 15px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.8em;
-                font-weight: bold;
-            }}
-            .toggle-comments-btn:hover {{
-                border-color: #818384;
-                color: #d7dadc;
-            }}
-            .collapsible-comments.collapsed {{
-                display: none;
-            }}
+            .toggle-comments-btn {{ background-color: transparent; border: 1px solid #343536; color: #818384; padding: 5px 10px; margin-top: 15px; margin-left: 15px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }}
+            .toggle-comments-btn:hover {{ border-color: #818384; color: #d7dadc; }}
+            .collapsible-comments.collapsed, .collapsible-content.collapsed {{ display: none; }} /* Consolidated the collapsed style */
         </style>
         <script>
             function toggleComments(button) {{
-                // Find the div containing the rest of the comments, which is the next element after the button
                 const collapsibleSection = button.nextElementSibling;
                 if (collapsibleSection) {{
-                    // Toggle the 'collapsed' class to show/hide it
                     collapsibleSection.classList.toggle('collapsed');
-
-                    // Update the button text based on the new state
                     const isCollapsed = collapsibleSection.classList.contains('collapsed');
                     if (isCollapsed) {{
-                        // To get the count, we count the number of direct child comments
                         const commentCount = collapsibleSection.children.length;
                         button.textContent = `Show ${{commentCount}} More Comments`;
                     }} else {{
@@ -662,15 +739,72 @@ def generate_feed_html(posts):
                     }}
                 }}
             }}
+
+            function toggleTopicList(header) {{
+                const content = header.nextElementSibling;
+                const isCollapsed = content.classList.toggle('collapsed');
+                if (isCollapsed) {{
+                    header.innerHTML = 'Post Clusters &#9662;'; // Down arrow
+                }} else {{
+                    header.innerHTML = 'Post Clusters &#9652;'; // Up arrow
+                }}
+            }}
+
+            function setActiveLink(clickedElement) {{
+                document.querySelectorAll('.topic-link').forEach(link => {{
+                    link.classList.remove('active');
+                }});
+                if (clickedElement) {{
+                    clickedElement.classList.add('active');
+                }}
+            }}
+
+            function collapseTopicList() {{
+                const topicListContent = document.getElementById('topic-list-content');
+                const topicListHeader = topicListContent.previousElementSibling; // This gets the <h3>
+                if (!topicListContent.classList.contains('collapsed')) {{
+                    topicListContent.classList.add('collapsed');
+                    topicListHeader.innerHTML = 'Post Clusters &#9662;';
+                }}
+            }}
+
+            function filterByTopic(topicId, event) {{
+                event.preventDefault(); 
+                setActiveLink(event.currentTarget);
+                const allPosts = document.querySelectorAll('.post-container');
+                allPosts.forEach(post => {{
+                    if (post.dataset.topicId === topicId) {{
+                        post.style.display = 'block';
+                    }} else {{
+                        post.style.display = 'none';
+                    }}
+                }});
+                collapseTopicList();
+            }}
+
+            function showAllPosts(event) {{
+                event.preventDefault(); 
+                setActiveLink(event.currentTarget);
+                const allPosts = document.querySelectorAll('.post-container');
+                allPosts.forEach(post => {{
+                    post.style.display = 'block';
+                }});
+                collapseTopicList(); // MODIFICATION: Collapse list after clicking "Show All"
+            }}
         </script>
     </head>
     <body>
-        <div class="main-container">
-            <div class="page-header">
-                <h1>Clankernet</h1>
-                <p>Displaying the {len(posts)} most recent posts.</p>
+        <div class="page-header">
+            <h1>Clankernet</h1>
+            <p>Displaying the {len(posts)} most recent posts.</p>
+        </div>
+        <div class="content-area">
+            <div class="trending-topics-container">
+                {trending_html}
             </div>
-            {all_posts_html}
+            <div class="main-content">
+                {all_posts_html}
+            </div>
         </div>
     </body>
     </html>
@@ -681,6 +815,15 @@ def generate_feed_html(posts):
 
 
 if __name__ == "__main__":
+    try:
+        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+            initial_history = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        initial_history = []
+
+    posts_to_render = initial_history[:MAX_POSTS_TO_DISPLAY]
+    generate_feed_html(posts_to_render, initial_history)
+
     completed_posts = 0
     while completed_posts < NUMBER_OF_NEW_POSTS:
         personas = load_personas()
@@ -712,17 +855,12 @@ if __name__ == "__main__":
 
                 full_history = update_post_history(new_post_data)
                 posts_to_render = full_history[:MAX_POSTS_TO_DISPLAY]
-                generate_feed_html(posts_to_render)
+                generate_feed_html(posts_to_render, full_history)
             else:
                 print("\n--- Skipped HTML generation due to failure in comment generation. ---")
         else:
             print("\n--- Skipped all generation due to failure in fetching a headline. ---")
 
         completed_posts += 1
-        time.sleep(2)
-
-
-
-
-
-
+        if completed_posts < NUMBER_OF_NEW_POSTS:
+            time.sleep(2)
