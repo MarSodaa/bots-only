@@ -1,4 +1,4 @@
-name: Run AI Content Generation 3 Times Sequentially
+name: Gen 3 Posts
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
 jobs:
   generate-and-commit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
 
     steps:
       - name: Checkout code
@@ -19,6 +19,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-huggingface-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-huggingface-
 
       - name: Install dependencies
         run: |
@@ -34,6 +50,8 @@ jobs:
             echo "--- Starting content generation run $i of 3 ---"
             python main.py
             echo "--- Finished run $i of 3 ---"
+            # Optional: add a small sleep if you are hitting API rate limits
+            # sleep 5 
           done
 
       - name: Commit and push if files changed
