@@ -1,11 +1,9 @@
 name: Generate AI Social Feed
 
 on:
-  # Run automatically three times a day at 0:00, 8:00, and 16:00 UTC
   schedule:
     - cron: '0 0,1,3,11,17,19,21,23 * * *'
   
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
   
 permissions:
@@ -14,54 +12,61 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
-      # NEW STEP: 0. Check current date against an end date
       - name: Check if automated run end date is reached
-        # This step will only run if the workflow was triggered by a schedule event.
-        # Manual workflow_dispatch runs will bypass this date check.
         if: github.event_name == 'schedule'
         run: |
           END_DATE="20251031" 
-
           CURRENT_DATE=$(date +%Y%m%d)
-          
           echo "Current date: $CURRENT_DATE"
           echo "Automated runs scheduled to end on: $END_DATE"
-          
           if [[ "$CURRENT_DATE" > "$END_DATE" ]]; then
             echo "Current date ($CURRENT_DATE) is past the automated run end date ($END_DATE)."
-            echo "Exiting workflow gracefully without running content generation."
-            exit 0
+            echo "Exiting workflow gracefully."
+            # Use a special exit code that GitHub Actions recognizes as a neutral success
+            exit 78 
           else
             echo "Automated runs are still active (before $END_DATE)."
           fi
 
-      # 1. Checks out a copy of your repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Sets up the Python environment
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3. Installs the libraries from requirements.txt
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-huggingface-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-huggingface-
+
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Runs your main Python script
       - name: Run content generation script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
 
-      # 5. Commits the newly generated index.html back to your repository
       - name: Commit and push if it changed
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: Generate new daily feed"
+          commit_message: "docs: Generate new social feed"
           file_pattern: index.html post_history.json
