@@ -2,7 +2,7 @@ name: Generate AI Social Feed
 
 on:
   schedule:
-    - cron: '0 0,1,3,11,17,19,21,23 * * *'
+    - cron: '0 11 * * *'
   
   workflow_dispatch:
   
