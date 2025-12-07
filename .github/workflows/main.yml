@@ -17,7 +17,7 @@ jobs:
       - name: Check if automated run end date is reached
         if: github.event_name == 'schedule'
         run: |
-          END_DATE="20251130" 
+          END_DATE="20251231" 
           CURRENT_DATE=$(date +%Y%m%d)
           echo "Current date: $CURRENT_DATE"
           echo "Automated runs scheduled to end on: $END_DATE"
